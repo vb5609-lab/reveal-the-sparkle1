@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Download, Share2, RotateCcw, Sparkles } from 'lucide-react';
+import { Download, Share2, RotateCcw, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { Confetti } from './Confetti';
+import { useSounds } from '@/hooks/useSounds';
 import { toast } from 'sonner';
 
 interface ImageRevealProps {
@@ -27,6 +29,10 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   const [isCompleted, setIsCompleted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [lastScratchTime, setLastScratchTime] = useState(0);
+  
+  const { playSound } = useSounds();
 
   // Initialize canvas and overlay
   useEffect(() => {
@@ -105,20 +111,43 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.arc(x * scaleX, y * scaleY, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
     ctx.fill();
 
+    // Play scratch sound (throttled)
+    const now = Date.now();
+    if (soundEnabled && now - lastScratchTime > 50) {
+      playSound('scratch');
+      setLastScratchTime(now);
+    }
+
     // Update progress
     const progress = calculateProgress();
     setRevealProgress(progress);
 
-    if (progress >= revealThreshold && !isCompleted) {
-      setIsCompleted(true);
-      setShowConfetti(true);
-      onRevealComplete?.();
-      toast.success("🎉 Image revealed! Amazing discovery!");
+    // Auto-reveal when threshold reached (Google Pay style)
+    if (progress >= 50 && !isCompleted) {
+      // Smooth auto-reveal animation
+      const autoReveal = () => {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        
+        const newProgress = calculateProgress();
+        setRevealProgress(newProgress);
+        
+        if (newProgress < 95) {
+          requestAnimationFrame(autoReveal);
+        } else {
+          setIsCompleted(true);
+          setShowConfetti(true);
+          if (soundEnabled) playSound('success');
+          onRevealComplete?.();
+          toast.success("🎉 Image revealed! Amazing discovery!");
+          setTimeout(() => setShowConfetti(false), 3000);
+        }
+      };
       
-      // Auto-hide confetti after 3 seconds
-      setTimeout(() => setShowConfetti(false), 3000);
+      setTimeout(autoReveal, 100);
     }
-  }, [brushSize, calculateProgress, revealThreshold, isCompleted, onRevealComplete]);
+  }, [brushSize, calculateProgress, revealThreshold, isCompleted, onRevealComplete, soundEnabled, lastScratchTime, playSound]);
 
   // Mouse events
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -208,7 +237,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     toast.success("Image downloaded! 📥");
   };
 
-  // Share functionality
+  // Enhanced share functionality with metadata
   const shareImage = async () => {
     if (!isCompleted) {
       toast.error("Complete the reveal first! 🎨");
@@ -216,16 +245,57 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     }
 
     try {
+      // Create a canvas with the revealed image for sharing
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = hiddenImageRef.current;
+      
+      if (ctx && img) {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+        
+        // Convert to blob for sharing
+        canvas.toBlob(async (blob) => {
+          if (blob && navigator.share) {
+            try {
+              await navigator.share({
+                title: 'Amazing Image Revealed! ✨',
+                text: 'I just scratched and revealed this incredible hidden image! 🎨✨ #ImageReveal #Discovery',
+                url: window.location.href,
+                files: [new File([blob], 'revealed-image.png', { type: 'image/png' })]
+              });
+              toast.success("Shared successfully! 🚀");
+            } catch {
+              // Fallback if file sharing fails
+              fallbackShare();
+            }
+          } else {
+            fallbackShare();
+          }
+        }, 'image/png');
+      } else {
+        fallbackShare();
+      }
+    } catch (error) {
+      fallbackShare();
+    }
+  };
+
+  const fallbackShare = async () => {
+    try {
       if (navigator.share) {
         await navigator.share({
-          title: 'Check out this amazing revealed image!',
-          text: 'I just revealed this incredible image! 🎨✨',
+          title: 'Amazing Image Revealed! ✨',
+          text: 'I just scratched and revealed this incredible hidden image! 🎨✨ #ImageReveal #Discovery',
           url: window.location.href
         });
         toast.success("Shared successfully! 🚀");
       } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Link copied to clipboard! 📋");
+        await navigator.clipboard.writeText(
+          `Amazing Image Revealed! ✨\n\nI just scratched and revealed this incredible hidden image! 🎨✨\n\n${window.location.href}\n\n#ImageReveal #Discovery`
+        );
+        toast.success("Link and description copied to clipboard! 📋");
       }
     } catch (error) {
       toast.error("Sharing failed. Try again! 📤");
@@ -233,10 +303,21 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   };
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto">
-      {showConfetti && <Confetti />}
+    <motion.div 
+      className="relative w-full max-w-2xl mx-auto"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+      <AnimatePresence>
+        {showConfetti && <Confetti />}
+      </AnimatePresence>
       
-      <Card className="relative overflow-hidden bg-card border-card-border hover-glow">
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Card className="relative overflow-hidden bg-card border-card-border hover-glow">
         {/* Hidden Image */}
         <img
           ref={hiddenImageRef}
@@ -275,70 +356,130 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
           </div>
         )}
       </Card>
+      </motion.div>
       
       {/* Progress Bar */}
-      <div className="mt-4 space-y-2">
+      <motion.div 
+        className="mt-4 space-y-2"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>Reveal Progress</span>
-          <span className="text-gradient-primary font-medium">
+          <motion.span 
+            className="text-gradient-primary font-medium"
+            key={Math.round(revealProgress)}
+            initial={{ scale: 1.2 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.2 }}
+          >
             {Math.round(revealProgress)}%
-          </span>
+          </motion.span>
         </div>
         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-primary to-primary-glow transition-all duration-300 ease-out"
-            style={{ width: `${revealProgress}%` }}
+          <motion.div 
+            className="h-full bg-gradient-to-r from-primary to-primary-glow"
+            initial={{ width: 0 }}
+            animate={{ width: `${revealProgress}%` }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
           />
         </div>
-      </div>
+      </motion.div>
       
       {/* Action Buttons */}
-      <div className="flex gap-3 mt-6">
-        <Button
-          onClick={resetReveal}
-          variant="outline"
-          size="sm"
-          className="flex-1 hover-scale"
-        >
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Reset
-        </Button>
+      <motion.div 
+        className="flex gap-3 mt-6"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button
+            onClick={resetReveal}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset
+          </Button>
+        </motion.div>
         
-        <Button
-          onClick={downloadImage}
-          variant="outline"
-          size="sm"
-          className="flex-1 hover-scale"
-          disabled={!isCompleted}
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Download
-        </Button>
+        <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button
+            onClick={downloadImage}
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={!isCompleted}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download
+          </Button>
+        </motion.div>
         
-        <Button
-          onClick={shareImage}
-          size="sm"
-          className="flex-1 bg-gradient-to-r from-primary to-primary-glow hover-scale"
-          disabled={!isCompleted}
-        >
-          <Share2 className="w-4 h-4 mr-2" />
-          Share
-        </Button>
-      </div>
+        <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button
+            onClick={shareImage}
+            size="sm"
+            className="w-full bg-gradient-to-r from-primary to-primary-glow"
+            disabled={!isCompleted}
+          >
+            <Share2 className="w-4 h-4 mr-2" />
+            Share
+          </Button>
+        </motion.div>
+        
+        {/* Sound Toggle */}
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            variant="outline"
+            size="sm"
+            className="px-3"
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </Button>
+        </motion.div>
+      </motion.div>
       
       {/* Completion Message */}
-      {isCompleted && (
-        <div className="mt-4 p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/20 animate-reveal-scale">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gradient-primary mb-1">
-              🎉 Congratulations!
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              You've successfully revealed the hidden image!
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {isCompleted && (
+          <motion.div 
+            className="mt-4 p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/20"
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            <motion.div 
+              className="text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <motion.h3 
+                className="text-lg font-semibold text-gradient-primary mb-1"
+                initial={{ y: -10 }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                🎉 Congratulations!
+              </motion.h3>
+              <motion.p 
+                className="text-sm text-muted-foreground"
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                You've successfully revealed the hidden image!
+              </motion.p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
