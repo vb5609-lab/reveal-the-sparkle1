@@ -325,38 +325,38 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     
     // Recreate beautiful overlay with enhanced gradient
-    const gradient = ctx.createLinearGradient(0, 0, overlayCanvas.width, overlayCanvas.height);
+    const gradient = ctx.createLinearGradient(0, 0, rect.width, rect.height);
     gradient.addColorStop(0, 'rgba(139, 92, 246, 0.95)');
     gradient.addColorStop(0.3, 'rgba(147, 51, 234, 0.9)');
     gradient.addColorStop(0.7, 'rgba(124, 58, 237, 0.9)');
     gradient.addColorStop(1, 'rgba(59, 7, 100, 0.95)');
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    ctx.fillRect(0, 0, rect.width, rect.height);
     
     // Add sparkling effect overlay
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     for (let i = 0; i < 50; i++) {
-      const x = Math.random() * overlayCanvas.width;
-      const y = Math.random() * overlayCanvas.height;
+      const x = Math.random() * rect.width;
+      const y = Math.random() * rect.height;
       const size = Math.random() * 3 + 1;
       ctx.beginPath();
       ctx.arc(x, y, size, 0, 2 * Math.PI);
       ctx.fill();
     }
     
-    // Enhanced text with better styling
+    // Enhanced text with better styling - using correct dimensions
     ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
     ctx.font = 'bold 28px system-ui';
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
     ctx.shadowBlur = 4;
-    ctx.fillText('Scratch to reveal...', overlayCanvas.width / 2, overlayCanvas.height / 2);
+    ctx.fillText('Scratch to reveal...', rect.width / 2, rect.height / 2);
     
     ctx.font = '18px system-ui';
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.shadowBlur = 2;
-    ctx.fillText('✨ Swipe or scratch the surface ✨', overlayCanvas.width / 2, overlayCanvas.height / 2 + 45);
+    ctx.fillText('✨ Swipe or scratch the surface ✨', rect.width / 2, rect.height / 2 + 45);
     
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;

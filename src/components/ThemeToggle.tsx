@@ -43,13 +43,24 @@ export const ThemeToggle: React.FC = () => {
       variant="outline"
       size="sm"
       onClick={toggleTheme}
-      className="hover-scale bg-card/50 backdrop-blur-sm"
+      className="hover-scale bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/40 transition-all duration-300 group relative overflow-hidden"
     >
-      {theme === 'light' ? (
-        <Moon className="w-4 h-4" />
-      ) : (
-        <Sun className="w-4 h-4" />
-      )}
+      {/* Beautiful gradient background on hover */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      
+      <div className="relative flex items-center gap-2">
+        {theme === 'light' ? (
+          <>
+            <Moon className="w-4 h-4 transition-transform group-hover:rotate-12" />
+            <span className="text-xs font-medium hidden sm:inline">Dark</span>
+          </>
+        ) : (
+          <>
+            <Sun className="w-4 h-4 transition-transform group-hover:rotate-12 text-yellow-500" />
+            <span className="text-xs font-medium hidden sm:inline">Light</span>
+          </>
+        )}
+      </div>
       <span className="sr-only">Toggle theme</span>
     </Button>
   );
