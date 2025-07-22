@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Download, Share2, RotateCcw, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { Download, Share2, RotateCcw, Sparkles, Volume2, VolumeX, X, Copy, MessageSquare, Facebook, Linkedin, Twitter, Instagram } from 'lucide-react';
 import { Confetti } from './Confetti';
 import { useSounds } from '@/hooks/useSounds';
 import { toast } from 'sonner';
@@ -16,7 +16,7 @@ interface ImageRevealProps {
 
 export const ImageReveal: React.FC<ImageRevealProps> = ({
   hiddenImageSrc,
-  revealThreshold = 75,
+  revealThreshold = 50, // Changed from 75 to 50 for faster auto-reveal
   brushSize = 40,
   onRevealComplete
 }) => {
@@ -30,6 +30,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   const [showConfetti, setShowConfetti] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showShareMenu, setShowShareMenu] = useState(false);
   
   // Performance optimization refs
   const lastProgressCheck = useRef(0);
@@ -38,7 +39,154 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   
   const { playSound } = useSounds();
 
-  // Optimized canvas initialization
+  // Enhanced share functionality with multiple platforms
+  const generateShareContent = () => {
+    const title = "Amazing Image Revealed! ✨";
+    const description = "I just scratched and revealed this incredible hidden image! Try it yourself! 🎨✨";
+    const url = window.location.href;
+    const hashtags = "ImageReveal,Discovery,ScratchGame,Interactive";
+    
+    return { title, description, url, hashtags };
+  };
+
+  const shareToWhatsApp = () => {
+    const { description, url } = generateShareContent();
+    const text = encodeURIComponent(`${description}\n\n${url}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+    toast.success("Opening WhatsApp! 💬");
+  };
+
+  const shareToFacebook = () => {
+    const { url, description } = generateShareContent();
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(description)}`;
+    window.open(shareUrl, '_blank', 'width=600,height=400');
+    toast.success("Opening Facebook! 📘");
+  };
+
+  const shareToLinkedIn = () => {
+    const { url, title, description } = generateShareContent();
+    const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(description)}`;
+    window.open(shareUrl, '_blank', 'width=600,height=400');
+    toast.success("Opening LinkedIn! 💼");
+  };
+
+  const shareToTwitter = () => {
+    const { description, url, hashtags } = generateShareContent();
+    const text = encodeURIComponent(`${description}\n\n${url}\n\n#${hashtags.replace(/,/g, ' #')}`);
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'width=600,height=400');
+    toast.success("Opening Twitter! 🐦");
+  };
+
+  const shareToInstagram = async () => {
+    const { description, url } = generateShareContent();
+    const content = `${description}\n\nTry it yourself: ${url}\n\n#ImageReveal #Discovery #Interactive #ScratchGame`;
+    
+    try {
+      // Copy content to clipboard
+      await navigator.clipboard.writeText(content);
+      toast.success("Content copied! 📋 Opening Instagram...");
+      
+      // Simple approach - just open Instagram web
+      setTimeout(() => {
+        window.open('https://www.instagram.com/', '_blank');
+        toast.info("Paste the copied content in your Instagram post! 📸✨");
+      }, 1000);
+      
+    } catch (error) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = content;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        toast.success("Content copied! 📋 Opening Instagram...");
+        setTimeout(() => {
+          window.open('https://www.instagram.com/', '_blank');
+          toast.info("Paste the copied content in your Instagram post! 📸✨");
+        }, 1000);
+      } catch (err) {
+        document.body.removeChild(textArea);
+        toast.error("Please copy this content manually and share on Instagram!");
+        console.log("Content to share:", content);
+      }
+    }
+  };
+
+  const copyToClipboard = async () => {
+    const { title, description, url } = generateShareContent();
+    const content = `${title}\n\n${description}\n\nTry it yourself: ${url}\n\n#ImageReveal #Discovery #ScratchGame`;
+    
+    try {
+      await navigator.clipboard.writeText(content);
+      toast.success("Content copied to clipboard! 📋✨");
+      
+      // Also show a brief instruction
+      setTimeout(() => {
+        toast.info("You can now paste this anywhere to share! 🚀");
+      }, 1500);
+      
+    } catch (error) {
+      // Fallback for older browsers
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        toast.success("Content copied to clipboard! 📋✨");
+        
+        setTimeout(() => {
+          toast.info("You can now paste this anywhere to share! 🚀");
+        }, 1500);
+        
+      } catch (err) {
+        // Final fallback - show the content to user
+        toast.error("Copy failed! Here's the content to share manually:");
+        console.log("Content to share:", content);
+        
+        // Show content in a simple alert as last resort
+        setTimeout(() => {
+          alert(`Copy this content:\n\n${content}`);
+        }, 100);
+      }
+    }
+  };
+
+  const useNativeShare = async () => {
+    if (!navigator.share) {
+      setShowShareMenu(true);
+      return;
+    }
+
+    const { title, description, url } = generateShareContent();
+    
+    try {
+      await navigator.share({
+        title,
+        text: description,
+        url
+      });
+      toast.success("Shared successfully! 🚀");
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        setShowShareMenu(true);
+      }
+    }
+  };
+
+  // Optimized canvas initialization with mobile performance improvements
   useEffect(() => {
     const canvas = canvasRef.current;
     const overlayCanvas = overlayCanvasRef.current;
@@ -46,17 +194,21 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
 
     const ctx = canvas.getContext('2d', { 
       alpha: true, 
-      willReadFrequently: false 
+      willReadFrequently: false,
+      desynchronized: true // Better performance on mobile
     });
     const overlayCtx = overlayCanvas.getContext('2d', { 
       alpha: true, 
-      willReadFrequently: true  // We read this frequently for progress calculation
+      willReadFrequently: true,  // We read this frequently for progress calculation
+      desynchronized: true // Better performance on mobile
     });
     if (!ctx || !overlayCtx) return;
 
-    // Set canvas size
+    // Set canvas size with mobile optimization
     const rect = canvas.getBoundingClientRect();
-    const pixelRatio = Math.min(window.devicePixelRatio, 2); // Cap at 2x for performance
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const pixelRatio = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2); // Lower ratio for mobile
+    
     canvas.width = rect.width * pixelRatio;
     canvas.height = rect.height * pixelRatio;
     overlayCanvas.width = canvas.width;
@@ -65,11 +217,11 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.scale(pixelRatio, pixelRatio);
     overlayCtx.scale(pixelRatio, pixelRatio);
 
-    // Optimize canvas rendering
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    overlayCtx.imageSmoothingEnabled = true;
-    overlayCtx.imageSmoothingQuality = 'medium'; // Lower quality for overlay for performance
+    // Optimize canvas rendering with mobile-specific settings
+    ctx.imageSmoothingEnabled = !isMobile; // Disable on mobile for performance
+    ctx.imageSmoothingQuality = isMobile ? 'low' : 'high';
+    overlayCtx.imageSmoothingEnabled = !isMobile;
+    overlayCtx.imageSmoothingQuality = 'low'; // Always low for overlay for performance
 
     // Create gradient overlay
     const gradient = overlayCtx.createLinearGradient(0, 0, rect.width, rect.height);
@@ -82,11 +234,11 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     
     // Add scratch instruction text
     overlayCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    overlayCtx.font = 'bold 24px system-ui';
+    overlayCtx.font = `bold ${isMobile ? '20px' : '24px'} system-ui`; // Smaller font on mobile
     overlayCtx.textAlign = 'center';
     overlayCtx.fillText('Scratch to reveal...', rect.width / 2, rect.height / 2);
     
-    overlayCtx.font = '16px system-ui';
+    overlayCtx.font = `${isMobile ? '14px' : '16px'} system-ui`;
     overlayCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     overlayCtx.fillText('✨ Swipe or scratch the surface ✨', rect.width / 2, rect.height / 2 + 40);
   }, [imageLoaded]);
@@ -103,7 +255,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     };
   }, []);
 
-  // Optimized progress calculation with throttling
+  // Improved progress calculation with better edge detection
   const calculateProgress = useCallback(() => {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return 0;
@@ -114,15 +266,27 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     const imageData = ctx.getImageData(0, 0, overlayCanvas.width, overlayCanvas.height);
     const pixels = imageData.data;
     let transparentPixels = 0;
-    let totalPixels = pixels.length / 4;
+    let totalPixels = 0;
 
-    // Sample every 4th pixel for better performance
-    for (let i = 3; i < pixels.length; i += 16) {
-      if (pixels[i] < 128) transparentPixels++;
+    // Better sampling strategy that includes corners and edges
+    const width = overlayCanvas.width;
+    const height = overlayCanvas.height;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const sampleRate = isMobile ? 8 : 4; // Less frequent sampling on mobile for performance
+    
+    for (let y = 0; y < height; y += sampleRate) {
+      for (let x = 0; x < width; x += sampleRate) {
+        const index = (y * width + x) * 4 + 3; // Alpha channel
+        if (index < pixels.length) {
+          totalPixels++;
+          if (pixels[index] < 128) { // Consider semi-transparent as revealed
+            transparentPixels++;
+          }
+        }
+      }
     }
-    totalPixels = totalPixels / 4; // Adjust for sampling
 
-    return (transparentPixels / totalPixels) * 100;
+    return totalPixels > 0 ? (transparentPixels / totalPixels) * 100 : 0;
   }, []);
 
   // Throttled progress update
@@ -146,7 +310,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     });
   }, [calculateProgress, revealThreshold, isCompleted, onRevealComplete, soundEnabled, playSound]);
 
-  // Optimized handle reveal function
+  // Enhanced handle reveal function with better edge/corner handling
   const handleReveal = useCallback((x: number, y: number) => {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas || isCompleted) return;
@@ -157,12 +321,33 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     const rect = overlayCanvas.getBoundingClientRect();
     const scaleX = overlayCanvas.width / rect.width;
     const scaleY = overlayCanvas.height / rect.height;
+    
+    // Convert coordinates
+    const canvasX = x * scaleX;
+    const canvasY = y * scaleY;
+    
+    // Ensure coordinates are within bounds (important for corners/edges)
+    const clampedX = Math.max(0, Math.min(canvasX, overlayCanvas.width));
+    const clampedY = Math.max(0, Math.min(canvasY, overlayCanvas.height));
+    
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const adjustedBrushSize = isMobile ? brushSize * 1.2 : brushSize; // Slightly larger brush on mobile
+    const pixelRatio = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
 
-    // Optimized canvas operations
+    // Optimized canvas operations with better edge handling
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
-    ctx.arc(x * scaleX, y * scaleY, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
+    ctx.arc(clampedX, clampedY, adjustedBrushSize * pixelRatio, 0, 2 * Math.PI);
     ctx.fill();
+    
+    // Add extra coverage for corner/edge areas
+    if (clampedX <= adjustedBrushSize || clampedX >= overlayCanvas.width - adjustedBrushSize ||
+        clampedY <= adjustedBrushSize || clampedY >= overlayCanvas.height - adjustedBrushSize) {
+      // Add additional brush stroke for better corner coverage
+      ctx.beginPath();
+      ctx.arc(clampedX, clampedY, adjustedBrushSize * pixelRatio * 0.7, 0, 2 * Math.PI);
+      ctx.fill();
+    }
 
     // Play scratch sound (handled by useSounds throttling)
     if (soundEnabled) {
@@ -183,9 +368,12 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isRevealing) return;
     
-    // Throttle mouse move events for better performance
+    // Mobile-optimized throttling
     const now = performance.now();
-    if (now - lastProgressCheck.current < 16) return; // ~60fps limit
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const throttleTime = isMobile ? 32 : 16; // 30fps on mobile, 60fps on desktop
+    
+    if (now - lastProgressCheck.current < throttleTime) return;
     lastProgressCheck.current = now;
     
     const rect = e.currentTarget.getBoundingClientRect();
@@ -209,14 +397,25 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     e.preventDefault();
     if (!isRevealing) return;
     
-    // Throttle touch move events for better performance
+    // Enhanced mobile touch handling with better throttling
     const now = performance.now();
-    if (now - lastProgressCheck.current < 16) return; // ~60fps limit
+    if (now - lastProgressCheck.current < 32) return; // 30fps for smooth mobile performance
     lastProgressCheck.current = now;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
-    handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
+    
+    // Ensure touch coordinates are valid
+    if (touch) {
+      const touchX = touch.clientX - rect.left;
+      const touchY = touch.clientY - rect.top;
+      
+      // Clamp touch coordinates to canvas bounds
+      const clampedX = Math.max(0, Math.min(touchX, rect.width));
+      const clampedY = Math.max(0, Math.min(touchY, rect.height));
+      
+      handleReveal(clampedX, clampedY);
+    }
   }, [isRevealing, handleReveal]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -224,7 +423,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     setIsRevealing(false);
   }, []);
 
-  // Optimized reset function
+  // Optimized reset function with mobile considerations
   const resetReveal = useCallback(() => {
     // Cancel any pending operations
     if (animationFrameId.current) {
@@ -243,6 +442,8 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     if (!ctx) return;
     
     const rect = overlayCanvas.getBoundingClientRect();
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     
@@ -256,11 +457,11 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.fillRect(0, 0, rect.width, rect.height);
     
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.font = 'bold 24px system-ui';
+    ctx.font = `bold ${isMobile ? '20px' : '24px'} system-ui`;
     ctx.textAlign = 'center';
     ctx.fillText('Scratch to reveal...', rect.width / 2, rect.height / 2);
     
-    ctx.font = '16px system-ui';
+    ctx.font = `${isMobile ? '14px' : '16px'} system-ui`;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.fillText('✨ Swipe or scratch the surface ✨', rect.width / 2, rect.height / 2 + 40);
     
@@ -288,62 +489,8 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
       return;
     }
 
-    try {
-      // Create a canvas with the revealed image for sharing
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = hiddenImageRef.current;
-      
-      if (ctx && img) {
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        ctx.drawImage(img, 0, 0);
-        
-        // Convert to blob for sharing
-        canvas.toBlob(async (blob) => {
-          if (blob && navigator.share) {
-            try {
-              await navigator.share({
-                title: 'Amazing Image Revealed! ✨',
-                text: 'I just scratched and revealed this incredible hidden image! 🎨✨ #ImageReveal #Discovery',
-                url: window.location.href,
-                files: [new File([blob], 'revealed-image.png', { type: 'image/png' })]
-              });
-              toast.success("Shared successfully! 🚀");
-            } catch {
-              // Fallback if file sharing fails
-              fallbackShare();
-            }
-          } else {
-            fallbackShare();
-          }
-        }, 'image/png');
-      } else {
-        fallbackShare();
-      }
-    } catch (error) {
-      fallbackShare();
-    }
-  };
-
-  const fallbackShare = async () => {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: 'Amazing Image Revealed! ✨',
-          text: 'I just scratched and revealed this incredible hidden image! 🎨✨ #ImageReveal #Discovery',
-          url: window.location.href
-        });
-        toast.success("Shared successfully! 🚀");
-      } else {
-        await navigator.clipboard.writeText(
-          `Amazing Image Revealed! ✨\n\nI just scratched and revealed this incredible hidden image! 🎨✨\n\n${window.location.href}\n\n#ImageReveal #Discovery`
-        );
-        toast.success("Link and description copied to clipboard! 📋");
-      }
-    } catch (error) {
-      toast.error("Sharing failed. Try again! 📤");
-    }
+    // Try native sharing first, fallback to custom menu
+    await useNativeShare();
   };
 
   return (
@@ -379,11 +526,16 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
           style={{ display: imageLoaded ? 'block' : 'none' }}
         />
         
-        {/* Overlay Canvas */}
+        {/* Overlay Canvas with mobile optimizations */}
         <canvas
           ref={overlayCanvasRef}
-          className="absolute inset-0 w-full h-full cursor-pointer touch-none"
-          style={{ display: imageLoaded ? 'block' : 'none' }}
+          className="absolute inset-0 w-full h-full cursor-pointer touch-none select-none"
+          style={{ 
+            display: imageLoaded ? 'block' : 'none',
+            touchAction: 'none', // Prevent scrolling on mobile
+            userSelect: 'none',
+            WebkitUserSelect: 'none'
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -391,6 +543,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onContextMenu={(e) => e.preventDefault()} // Prevent context menu on long press
         />
         
         {/* Loading State */}
@@ -524,6 +677,101 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Enhanced Share Menu */}
+      <AnimatePresence>
+        {showShareMenu && (
+          <motion.div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowShareMenu(false)}
+          >
+            <motion.div 
+              className="bg-card border border-border rounded-2xl p-6 w-full max-w-md"
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gradient-primary">Share Your Discovery! ✨</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowShareMenu(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <Button
+                  onClick={() => { shareToWhatsApp(); setShowShareMenu(false); }}
+                  variant="outline"
+                  className="h-12 flex flex-col gap-1 hover:bg-green-50 hover:border-green-200"
+                >
+                  <MessageSquare className="h-5 w-5 text-green-600" />
+                  <span className="text-xs">WhatsApp</span>
+                </Button>
+
+                <Button
+                  onClick={() => { shareToFacebook(); setShowShareMenu(false); }}
+                  variant="outline"
+                  className="h-12 flex flex-col gap-1 hover:bg-blue-50 hover:border-blue-200"
+                >
+                  <Facebook className="h-5 w-5 text-blue-600" />
+                  <span className="text-xs">Facebook</span>
+                </Button>
+
+                <Button
+                  onClick={() => { shareToLinkedIn(); setShowShareMenu(false); }}
+                  variant="outline"
+                  className="h-12 flex flex-col gap-1 hover:bg-blue-50 hover:border-blue-200"
+                >
+                  <Linkedin className="h-5 w-5 text-blue-700" />
+                  <span className="text-xs">LinkedIn</span>
+                </Button>
+
+                <Button
+                  onClick={() => { shareToTwitter(); setShowShareMenu(false); }}
+                  variant="outline"
+                  className="h-12 flex flex-col gap-1 hover:bg-blue-50 hover:border-blue-200"
+                >
+                  <Twitter className="h-5 w-5 text-blue-500" />
+                  <span className="text-xs">Twitter</span>
+                </Button>
+
+                <Button
+                  onClick={() => { shareToInstagram(); setShowShareMenu(false); }}
+                  variant="outline"
+                  className="h-12 flex flex-col gap-1 hover:bg-pink-50 hover:border-pink-200 dark:hover:bg-pink-950/20"
+                >
+                  <Instagram className="h-5 w-5 text-pink-600" />
+                  <span className="text-xs">Instagram</span>
+                </Button>
+
+                <Button
+                  onClick={() => { copyToClipboard(); setShowShareMenu(false); }}
+                  variant="outline"
+                  className="h-12 flex flex-col gap-1 hover:bg-gray-50 hover:border-gray-200"
+                >
+                  <Copy className="h-5 w-5 text-gray-600" />
+                  <span className="text-xs">Copy Link</span>
+                </Button>
+              </div>
+
+              <div className="text-xs text-muted-foreground text-center">
+                Choose your preferred platform to share this amazing discovery! 🚀
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
+
+export default ImageReveal;
