@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { AdminPanel } from '@/components/AdminPanel';
 import { Sparkles } from 'lucide-react';
 import hiddenTreasure from '@/assets/hidden-treasure.jpg';
+import d3Logo from '@/assets/d3logo.png';
 
 const Index = () => {
   const [currentImage, setCurrentImage] = useState(hiddenTreasure);
@@ -46,7 +47,19 @@ const Index = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
         <div className="container mx-auto px-4 text-center relative">
         
-          
+          {/* Logo */}
+          <motion.div
+            className="flex justify-center mb-6"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <img 
+              src={d3Logo} 
+              alt="D3 Logo" 
+              className="h-16 w-auto md:h-20 object-contain"
+            />
+          </motion.div>
           
           <motion.h1 
             className="text-5xl md:text-6xl font-bold mb-4 text-gradient-primary"
