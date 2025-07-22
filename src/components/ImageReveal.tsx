@@ -18,12 +18,15 @@ interface ImageRevealProps {
 export const ImageReveal: React.FC<ImageRevealProps> = ({
   hiddenImageSrc,
   revealThreshold = 75,
-  brushSize = 40,
+  brushSize = 35,
   onRevealComplete
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hiddenImageRef = useRef<HTMLImageElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number>();
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const revealQueueRef = useRef<{ x: number; y: number }[]>([]);
   
   const [isRevealing, setIsRevealing] = useState(false);
   const [revealProgress, setRevealProgress] = useState(0);
@@ -31,7 +34,6 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   const [showConfetti, setShowConfetti] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [lastScratchTime, setLastScratchTime] = useState(0);
   
   const { playSound } = useSounds();
 
@@ -75,6 +77,15 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     overlayCtx.fillText('✨ Swipe or scratch the surface ✨', rect.width / 2, rect.height / 2 + 40);
   }, [imageLoaded]);
 
+  // Cleanup effect for animation frames
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
   // Calculate reveal progress
   const calculateProgress = useCallback(() => {
     const overlayCanvas = overlayCanvasRef.current;
@@ -95,10 +106,10 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     return (transparentPixels / totalPixels) * 100;
   }, []);
 
-  // Handle scratch/reveal interaction
-  const handleReveal = useCallback((x: number, y: number) => {
+  // Optimized smooth reveal with interpolation and queuing
+  const processRevealQueue = useCallback(() => {
     const overlayCanvas = overlayCanvasRef.current;
-    if (!overlayCanvas || isCompleted) return;
+    if (!overlayCanvas || isCompleted || revealQueueRef.current.length === 0) return;
 
     const ctx = overlayCanvas.getContext('2d');
     if (!ctx) return;
@@ -108,67 +119,162 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     const scaleY = overlayCanvas.height / rect.height;
 
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    ctx.arc(x * scaleX, y * scaleY, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
-    ctx.fill();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    // Play scratch sound (throttled)
-    const now = Date.now();
-    if (soundEnabled && now - lastScratchTime > 50) {
-      playSound('scratch');
-      setLastScratchTime(now);
-    }
+    // Process all queued points with smooth interpolation
+    while (revealQueueRef.current.length > 0) {
+      const point = revealQueueRef.current.shift()!;
+      const x = point.x * scaleX;
+      const y = point.y * scaleY;
 
-    // Update progress
-    const progress = calculateProgress();
-    setRevealProgress(progress);
-
-    // Auto-reveal when threshold reached (Google Pay style)
-    if (progress >= 50 && !isCompleted) {
-      // Smooth auto-reveal animation
-      const autoReveal = () => {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      if (lastPointRef.current) {
+        // Draw smooth line between points for fluid movement
+        const lastX = lastPointRef.current.x * scaleX;
+        const lastY = lastPointRef.current.y * scaleY;
         
-        const newProgress = calculateProgress();
-        setRevealProgress(newProgress);
+        // Calculate distance and add intermediate points if needed
+        const distance = Math.sqrt(Math.pow(x - lastX, 2) + Math.pow(y - lastY, 2));
+        const maxGap = brushSize * 0.5 * window.devicePixelRatio;
         
-        if (newProgress < 95) {
-          requestAnimationFrame(autoReveal);
-        } else {
-          setIsCompleted(true);
-          setShowConfetti(true);
-          if (soundEnabled) playSound('success');
-          onRevealComplete?.();
-          toast.success("🎉 Image revealed! Amazing discovery!");
-          setTimeout(() => setShowConfetti(false), 3000);
+        if (distance > maxGap) {
+          const steps = Math.ceil(distance / maxGap);
+          for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const interpX = lastX + (x - lastX) * t;
+            const interpY = lastY + (y - lastY) * t;
+            
+            ctx.beginPath();
+            ctx.arc(interpX, interpY, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
+            ctx.fill();
+          }
         }
-      };
-      
-      setTimeout(autoReveal, 100);
-    }
-  }, [brushSize, calculateProgress, revealThreshold, isCompleted, onRevealComplete, soundEnabled, lastScratchTime, playSound]);
+      }
 
-  // Mouse events
+      // Draw current point
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
+      ctx.fill();
+
+      lastPointRef.current = point;
+    }
+
+    // Optimized sound and progress updates
+    if (soundEnabled) {
+      playSound('scratch');
+    }
+
+    // Update progress less frequently for better performance
+    if (Math.random() < 0.25) { // Only 25% of the time
+      const progress = calculateProgress();
+      setRevealProgress(progress);
+
+      // Auto-reveal when threshold reached
+      if (progress >= 50 && !isCompleted) {
+        setTimeout(() => autoReveal(), 150);
+      }
+    }
+  }, [brushSize, calculateProgress, isCompleted, soundEnabled, playSound]);
+
+  // Queue-based reveal for ultra-smooth performance
+  const handleReveal = useCallback((x: number, y: number) => {
+    revealQueueRef.current.push({ x, y });
+    
+    // Use requestAnimationFrame for optimal performance
+    if (!animationFrameRef.current) {
+      animationFrameRef.current = requestAnimationFrame(() => {
+        processRevealQueue();
+        animationFrameRef.current = undefined;
+      });
+    }
+  }, [processRevealQueue]);
+
+  // Enhanced auto-reveal with smooth expanding effect
+  const autoReveal = useCallback(() => {
+    const overlayCanvas = overlayCanvasRef.current;
+    if (!overlayCanvas || isCompleted) return;
+
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.globalCompositeOperation = 'destination-out';
+    
+    // Create beautiful expanding circles effect
+    const centerX = overlayCanvas.width / 2;
+    const centerY = overlayCanvas.height / 2;
+    const maxRadius = Math.max(overlayCanvas.width, overlayCanvas.height) * 0.8;
+    
+    let currentRadius = 0;
+    const expandSpeed = maxRadius / 25; // 25 frames for ultra-smooth animation
+    
+    const expand = () => {
+      // Multiple expanding circles for smoother effect
+      for (let i = 0; i < 3; i++) {
+        const radius = currentRadius - (i * expandSpeed * 0.3);
+        if (radius > 0) {
+          ctx.globalAlpha = 0.6 - (i * 0.15);
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      }
+      
+      currentRadius += expandSpeed;
+      
+      const progress = Math.min(95, calculateProgress());
+      setRevealProgress(progress);
+      
+      if (currentRadius < maxRadius && progress < 95) {
+        requestAnimationFrame(expand);
+      } else {
+        // Final cleanup
+        ctx.globalAlpha = 1;
+        ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        
+        setIsCompleted(true);
+        setShowConfetti(true);
+        if (soundEnabled) playSound('success');
+        onRevealComplete?.();
+        toast.success("🎉 Image revealed! Amazing discovery!");
+        setTimeout(() => setShowConfetti(false), 3000);
+      }
+    };
+    
+    expand();
+  }, [calculateProgress, isCompleted, onRevealComplete, soundEnabled, playSound]);
+
+  // Enhanced mouse events with better responsiveness
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     setIsRevealing(true);
+    lastPointRef.current = null; // Reset for new stroke
     const rect = e.currentTarget.getBoundingClientRect();
     handleReveal(e.clientX - rect.left, e.clientY - rect.top);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isRevealing) return;
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     handleReveal(e.clientX - rect.left, e.clientY - rect.top);
   };
 
-  const handleMouseUp = () => setIsRevealing(false);
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsRevealing(false);
+    lastPointRef.current = null;
+  };
 
-  // Touch events
+  const handleMouseLeave = () => {
+    setIsRevealing(false);
+    lastPointRef.current = null;
+  };
+
+  // Enhanced touch events with better performance and smoothness
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
     setIsRevealing(true);
+    lastPointRef.current = null; // Reset for new stroke
     const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
     handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
@@ -177,21 +283,36 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   const handleTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
     if (!isRevealing) return;
+    
     const rect = e.currentTarget.getBoundingClientRect();
-    const touch = e.touches[0];
-    handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
+    
+    // Handle multiple touches for faster revealing
+    for (let i = 0; i < Math.min(e.touches.length, 3); i++) {
+      const touch = e.touches[i];
+      handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     e.preventDefault();
     setIsRevealing(false);
+    lastPointRef.current = null;
   };
 
-  // Reset function
+  // Enhanced reset function
   const resetReveal = () => {
     setRevealProgress(0);
     setIsCompleted(false);
     setShowConfetti(false);
+    setIsRevealing(false);
+    
+    // Clear animation frame and reset refs
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = undefined;
+    }
+    lastPointRef.current = null;
+    revealQueueRef.current = [];
     
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return;
@@ -203,23 +324,42 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     
-    // Recreate overlay
-    const gradient = ctx.createLinearGradient(0, 0, rect.width, rect.height);
-    gradient.addColorStop(0, 'rgba(139, 92, 246, 0.9)');
-    gradient.addColorStop(0.5, 'rgba(147, 51, 234, 0.8)');
-    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.9)');
+    // Recreate beautiful overlay with enhanced gradient
+    const gradient = ctx.createLinearGradient(0, 0, overlayCanvas.width, overlayCanvas.height);
+    gradient.addColorStop(0, 'rgba(139, 92, 246, 0.95)');
+    gradient.addColorStop(0.3, 'rgba(147, 51, 234, 0.9)');
+    gradient.addColorStop(0.7, 'rgba(124, 58, 237, 0.9)');
+    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.95)');
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.font = 'bold 24px system-ui';
+    // Add sparkling effect overlay
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    for (let i = 0; i < 50; i++) {
+      const x = Math.random() * overlayCanvas.width;
+      const y = Math.random() * overlayCanvas.height;
+      const size = Math.random() * 3 + 1;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    
+    // Enhanced text with better styling
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.font = 'bold 28px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText('Scratch to reveal...', rect.width / 2, rect.height / 2);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 4;
+    ctx.fillText('Scratch to reveal...', overlayCanvas.width / 2, overlayCanvas.height / 2);
     
-    ctx.font = '16px system-ui';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.fillText('✨ Swipe or scratch the surface ✨', rect.width / 2, rect.height / 2 + 40);
+    ctx.font = '18px system-ui';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.shadowBlur = 2;
+    ctx.fillText('✨ Swipe or scratch the surface ✨', overlayCanvas.width / 2, overlayCanvas.height / 2 + 45);
+    
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
     
     toast.info("Ready for a new reveal! 🎯");
   };
@@ -274,15 +414,16 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
         {/* Overlay Canvas */}
         <canvas
           ref={overlayCanvasRef}
-          className="absolute inset-0 w-full h-full cursor-pointer touch-none"
+          className="absolute inset-0 w-full h-full cursor-pointer touch-none select-none"
           style={{ display: imageLoaded ? 'block' : 'none' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onContextMenu={(e) => e.preventDefault()}
         />
         
         {/* Loading State */}
