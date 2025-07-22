@@ -1,75 +1,93 @@
-# Welcome to your Lovable project
+# Reveal The Sparkle - Interactive Scratch Game
 
-## Project info
+An engaging interactive web application where users can scratch the surface to reveal hidden treasures and share their discoveries.
 
-**URL**: https://lovable.dev/projects/de146052-630d-42ee-994c-2e169807836e
+## Features
 
-## How can I edit this code?
+- 🎨 **Interactive Scratch-to-Reveal**: Use mouse or touch to scratch and uncover hidden images
+- 🔊 **Sound Effects**: Pleasant audio feedback for scratching and discovery
+- 📱 **Mobile Optimized**: Responsive design that works on all devices
+- 🌟 **Confetti Animation**: Celebratory effects when treasure is revealed
+- 📤 **Social Sharing**: Share your discoveries on WhatsApp, Facebook, Twitter, LinkedIn, and more
+- 🌙 **Dark/Light Theme**: Toggle between themes for comfortable viewing
+- 📸 **Download Feature**: Save the revealed image to your device
 
-There are several ways of editing your application.
+## Technologies Used
 
-**Use Lovable**
+- **React** with TypeScript
+- **Vite** for fast development and building
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **Web Audio API** for sound effects
+- **Canvas API** for scratch functionality
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/de146052-630d-42ee-994c-2e169807836e) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
 
-**Use your preferred IDE**
+### Installation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Clone the repository:
+```bash
+git clone https://github.com/vb5609-lab/reveal-the-sparkle1.git
+cd reveal-the-sparkle1
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. Install dependencies:
+```bash
+npm install
+```
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Open [http://localhost:8080](http://localhost:8080) to view it in the browser.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Building for Production
 
-**Use GitHub Codespaces**
+```bash
+npm run build
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+The build artifacts will be stored in the `dist/` directory.
 
-## What technologies are used for this project?
+## Deployment
 
-This project is built with:
+This project is configured to work with:
+- **Vercel**: Automatic deployment from the main branch
+- **GitHub Pages**: Using GitHub Actions workflow
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Project Structure
 
-## How can I deploy this project?
+```
+src/
+├── components/          # React components
+│   ├── ui/             # Reusable UI components
+│   ├── ImageReveal.tsx # Main scratch component
+│   ├── ShareDialog.tsx # Social sharing functionality
+│   └── ...
+├── hooks/              # Custom React hooks
+├── assets/             # Images and static files
+└── lib/                # Utility functions
+```
 
-Simply open [Lovable](https://lovable.dev/projects/de146052-630d-42ee-994c-2e169807836e) and click on Share -> Publish.
+## Contributing
 
-## Can I connect a custom domain to my Lovable project?
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-Yes, you can!
+## License
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+This project is open source and available under the [MIT License](LICENSE).
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
-"# reveal-the-sparkle1" 
+---
+
+Built with ❤️ using modern web technologies
 # reveal-the-sparkle1
