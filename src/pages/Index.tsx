@@ -154,7 +154,7 @@ const Index = () => {
         <div className="text-center">
           <div className="glass-card inline-block px-6 py-3 mx-auto">
             <p className="text-sm text-muted-foreground flex items-center gap-2">
-              Made with <span className="text-red-500 animate-pulse">❤️</span>
+              Made with <span className="text-red-500 animate-pulse">❤️</span> by D3 team
             </p>
           </div>
         </div>

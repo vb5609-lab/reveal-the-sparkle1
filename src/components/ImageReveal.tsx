@@ -133,27 +133,46 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
         const lastX = lastPointRef.current.x * scaleX;
         const lastY = lastPointRef.current.y * scaleY;
         
-        // Calculate distance and add intermediate points if needed
+        // Calculate distance and add ultra-smooth interpolation for buttery-smooth scratching
         const distance = Math.sqrt(Math.pow(x - lastX, 2) + Math.pow(y - lastY, 2));
-        const maxGap = brushSize * 0.5 * window.devicePixelRatio;
+        const maxGap = brushSize * 0.15 * window.devicePixelRatio; // Much smaller gaps for ultra-smooth lines
         
         if (distance > maxGap) {
           const steps = Math.ceil(distance / maxGap);
           for (let i = 1; i <= steps; i++) {
             const t = i / steps;
-            const interpX = lastX + (x - lastX) * t;
-            const interpY = lastY + (y - lastY) * t;
+            
+            // Use smoothstep interpolation for natural curves
+            const smoothT = t * t * (3 - 2 * t);
+            
+            const interpX = lastX + (x - lastX) * smoothT;
+            const interpY = lastY + (y - lastY) * smoothT;
+            
+            // Variable brush size based on speed for natural feel
+            const speedFactor = Math.min(distance / (brushSize * 2), 1);
+            const currentBrushSize = brushSize * (0.9 + speedFactor * 0.2);
+            
+            // Reduced randomness for smoother appearance
+            const randomOffsetX = (Math.random() - 0.5) * brushSize * 0.1 * window.devicePixelRatio;
+            const randomOffsetY = (Math.random() - 0.5) * brushSize * 0.1 * window.devicePixelRatio;
             
             ctx.beginPath();
-            ctx.arc(interpX, interpY, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
+            ctx.arc(
+              interpX + randomOffsetX, 
+              interpY + randomOffsetY, 
+              currentBrushSize * window.devicePixelRatio, 
+              0, 
+              2 * Math.PI
+            );
             ctx.fill();
           }
         }
       }
 
-      // Draw current point
+      // Draw current point with variable size for natural feel
+      const currentBrushSize = brushSize * (0.95 + Math.random() * 0.1); // Slight size variation
       ctx.beginPath();
-      ctx.arc(x, y, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
+      ctx.arc(x, y, currentBrushSize * window.devicePixelRatio, 0, 2 * Math.PI);
       ctx.fill();
 
       lastPointRef.current = point;
@@ -221,16 +240,18 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
       
       currentRadius += expandSpeed;
       
-      const progress = Math.min(95, calculateProgress());
+      const progress = calculateProgress(); // Remove the 95% limit
       setRevealProgress(progress);
       
-      if (currentRadius < maxRadius && progress < 95) {
+      if (currentRadius < maxRadius && progress < 100) { // Changed from 95 to 100
         requestAnimationFrame(expand);
       } else {
-        // Final cleanup
+        // Final cleanup - ensure complete reveal
         ctx.globalAlpha = 1;
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         
+        // Force 100% completion
+        setRevealProgress(100);
         setIsCompleted(true);
         setShowConfetti(true);
         if (soundEnabled) playSound('success');
@@ -270,14 +291,28 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     lastPointRef.current = null;
   };
 
-  // Enhanced touch events with better performance and smoothness
+  // State for smooth touch tracking
+  const touchVelocityRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const touchHistoryRef = useRef<{ x: number; y: number; time: number }[]>([]);
+  const touchTimestampRef = useRef<number>(0);
+
+  // Ultra-smooth touch events with velocity prediction and interpolation
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
     setIsRevealing(true);
-    lastPointRef.current = null; // Reset for new stroke
+    lastPointRef.current = null;
+    touchHistoryRef.current = [];
+    touchVelocityRef.current = { x: 0, y: 0 };
+    
     const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
-    handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    touchTimestampRef.current = performance.now();
+    touchHistoryRef.current.push({ x, y, time: touchTimestampRef.current });
+    
+    handleReveal(x, y);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -285,11 +320,86 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     if (!isRevealing) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const currentTime = performance.now();
     
-    // Handle multiple touches for faster revealing
-    for (let i = 0; i < Math.min(e.touches.length, 3); i++) {
-      const touch = e.touches[i];
-      handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
+    // Calculate velocity for smooth interpolation
+    if (touchHistoryRef.current.length > 0) {
+      const lastTouch = touchHistoryRef.current[touchHistoryRef.current.length - 1];
+      const deltaTime = currentTime - lastTouch.time;
+      
+      if (deltaTime > 0) {
+        touchVelocityRef.current = {
+          x: (x - lastTouch.x) / deltaTime,
+          y: (y - lastTouch.y) / deltaTime
+        };
+      }
+    }
+    
+    // Add current touch to history
+    touchHistoryRef.current.push({ x, y, time: currentTime });
+    
+    // Keep only recent history for performance
+    if (touchHistoryRef.current.length > 5) {
+      touchHistoryRef.current.shift();
+    }
+    
+    // Enhanced interpolation for ultra-smooth lines
+    if (lastPointRef.current) {
+      const lastX = lastPointRef.current.x;
+      const lastY = lastPointRef.current.y;
+      const distance = Math.sqrt(Math.pow(x - lastX, 2) + Math.pow(y - lastY, 2));
+      
+      // If distance is significant, add interpolated points
+      if (distance > brushSize * 0.25) {
+        const steps = Math.ceil(distance / (brushSize * 0.25));
+        
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          
+          // Use cubic interpolation for smoother curves
+          const cubicT = t * t * (3 - 2 * t); // Smoothstep function
+          
+          const interpX = lastX + (x - lastX) * cubicT;
+          const interpY = lastY + (y - lastY) * cubicT;
+          
+          // Add velocity-based prediction for even smoother feel
+          const predictX = interpX + touchVelocityRef.current.x * 2;
+          const predictY = interpY + touchVelocityRef.current.y * 2;
+          
+          handleReveal(interpX, interpY);
+          
+          // Add slight randomness for natural texture
+          if (Math.random() < 0.2) {
+            const offsetX = (Math.random() - 0.5) * brushSize * 0.3;
+            const offsetY = (Math.random() - 0.5) * brushSize * 0.3;
+            handleReveal(interpX + offsetX, interpY + offsetY);
+          }
+        }
+      }
+    }
+    
+    // Process the main touch point
+    handleReveal(x, y);
+    
+    // Add pressure simulation based on velocity
+    const velocity = Math.sqrt(
+      touchVelocityRef.current.x * touchVelocityRef.current.x + 
+      touchVelocityRef.current.y * touchVelocityRef.current.y
+    );
+    
+    // For slower movements, add more coverage for smoother feel
+    if (velocity < 0.5) {
+      const extraPoints = 3;
+      for (let i = 0; i < extraPoints; i++) {
+        const angle = (Math.PI * 2 * i) / extraPoints;
+        const radius = brushSize * 0.4;
+        const extraX = x + Math.cos(angle) * radius;
+        const extraY = y + Math.sin(angle) * radius;
+        handleReveal(extraX, extraY);
+      }
     }
   };
 
@@ -297,6 +407,10 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     e.preventDefault();
     setIsRevealing(false);
     lastPointRef.current = null;
+    
+    // Clean up touch tracking data
+    touchHistoryRef.current = [];
+    touchVelocityRef.current = { x: 0, y: 0 };
   };
 
   // Enhanced reset function
@@ -464,39 +578,39 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
         </div>
       </motion.div>
       
-      {/* Action Buttons */}
+      {/* Action Buttons - Mobile Responsive Layout */}
       <motion.div 
-        className="flex gap-3 mt-6"
+        className="flex flex-wrap gap-2 sm:gap-3 mt-6"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="flex-1 min-w-[80px]" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Button
             onClick={resetReveal}
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full text-xs sm:text-sm"
           >
-            <RotateCcw className="w-4 h-4 mr-2" />
+            <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
             Reset
           </Button>
         </motion.div>
         
-        <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="flex-1 min-w-[90px]" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Button
             onClick={downloadImage}
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full text-xs sm:text-sm"
             disabled={!isCompleted}
           >
-            <Download className="w-4 h-4 mr-2" />
+            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
             Download
           </Button>
         </motion.div>
         
-        <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="flex-1 min-w-[80px]" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <ShareDialog
             imageUrl={hiddenImageSrc}
             isCompleted={isCompleted}
@@ -505,14 +619,14 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
         </motion.div>
         
         {/* Sound Toggle */}
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="shrink-0" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Button
             onClick={() => setSoundEnabled(!soundEnabled)}
             variant="outline"
             size="sm"
-            className="px-3"
+            className="px-2 sm:px-3"
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            {soundEnabled ? <Volume2 className="w-3 h-3 sm:w-4 sm:h-4" /> : <VolumeX className="w-3 h-3 sm:w-4 sm:h-4" />}
           </Button>
         </motion.div>
       </motion.div>
