@@ -37,7 +37,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   
   const shareText = "🎨✨ I just scratched and revealed this incredible hidden image! Come try this amazing scratch-to-reveal experience! #ImageReveal #Discovery #Interactive";
-  const shareUrl = window.location.href;
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const hashtags = "ImageReveal,Discovery,Interactive,Amazing";
 
   const shareOptions = [
@@ -46,6 +46,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: MessageCircle,
       color: 'bg-green-500 hover:bg-green-600',
       action: () => {
+        if (typeof window === 'undefined') return;
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}`;
         window.open(whatsappUrl, '_blank');
         toast.success('Opening WhatsApp! 📱');
@@ -56,6 +57,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: Facebook,
       color: 'bg-blue-600 hover:bg-blue-700',
       action: () => {
+        if (typeof window === 'undefined') return;
         const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
         window.open(facebookUrl, '_blank', 'width=600,height=400');
         toast.success('Opening Facebook! 👥');
@@ -66,6 +68,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: Twitter,
       color: 'bg-sky-500 hover:bg-sky-600',
       action: () => {
+        if (typeof window === 'undefined') return;
         const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}&hashtags=${hashtags}`;
         window.open(twitterUrl, '_blank', 'width=600,height=400');
         toast.success('Opening Twitter! 🐦');
@@ -76,6 +79,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: Linkedin,
       color: 'bg-blue-700 hover:bg-blue-800',
       action: () => {
+        if (typeof window === 'undefined') return;
         const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('Amazing Image Revealed!')}&summary=${encodeURIComponent(shareText)}`;
         window.open(linkedinUrl, '_blank', 'width=600,height=400');
         toast.success('Opening LinkedIn! 💼');
@@ -86,6 +90,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: Send,
       color: 'bg-sky-400 hover:bg-sky-500',
       action: () => {
+        if (typeof window === 'undefined') return;
         const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
         window.open(telegramUrl, '_blank');
         toast.success('Opening Telegram! ✈️');
@@ -96,6 +101,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: Mail,
       color: 'bg-gray-600 hover:bg-gray-700',
       action: () => {
+        if (typeof window === 'undefined') return;
         const emailSubject = encodeURIComponent('Amazing Image Revealed! ✨');
         const emailBody = encodeURIComponent(`${shareText}\n\nCheck it out here: ${shareUrl}`);
         const mailtoUrl = `mailto:?subject=${emailSubject}&body=${emailBody}`;
@@ -108,6 +114,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: Instagram,
       color: 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600',
       action: async () => {
+        if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
         // Try to open Instagram app first, then fallback to web
         const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
         const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
@@ -152,6 +159,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       icon: Copy,
       color: 'bg-emerald-500 hover:bg-emerald-600',
       action: async () => {
+        if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
         try {
           await navigator.clipboard.writeText(imageUrl);
           toast.success('Image link copied! 🖼️', {
@@ -160,6 +168,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
           });
         } catch (error) {
           // Fallback for older browsers
+          if (typeof document === 'undefined') return;
           const textArea = document.createElement('textarea');
           textArea.value = imageUrl;
           textArea.style.position = 'fixed';
@@ -188,6 +197,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   ];
 
   const copyToClipboard = async () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
     const textToCopy = `${shareText}\n\n${shareUrl}`;
     
     try {
@@ -200,6 +210,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
         });
       } else {
         // Fallback for older browsers or non-secure contexts
+        if (typeof document === 'undefined') return;
         const textArea = document.createElement('textarea');
         textArea.value = textToCopy;
         textArea.style.position = 'fixed';
