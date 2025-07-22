@@ -1,19 +1,40 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
-// Simple Web Audio API sounds
-const createAudioContext = () => {
+// Create a single AudioContext instance and reuse it
+let globalAudioContext: AudioContext | null = null;
+
+const getAudioContext = () => {
   if (typeof window === 'undefined') return null;
-  try {
-    return new (window.AudioContext || (window as any).webkitAudioContext)();
-  } catch {
-    return null;
+  
+  if (!globalAudioContext) {
+    try {
+      globalAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch {
+      return null;
+    }
   }
+  
+  // Resume context if suspended (for user gesture requirement)
+  if (globalAudioContext.state === 'suspended') {
+    globalAudioContext.resume();
+  }
+  
+  return globalAudioContext;
 };
 
 export const useSounds = () => {
+  const lastSoundTime = useRef(0);
+  
   const playSound = useCallback((type: 'scratch' | 'success') => {
-    const audioContext = createAudioContext();
+    const audioContext = getAudioContext();
     if (!audioContext) return;
+    
+    // Throttle scratch sounds to prevent audio lag
+    const now = performance.now();
+    if (type === 'scratch' && now - lastSoundTime.current < 50) {
+      return;
+    }
+    lastSoundTime.current = now;
 
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();

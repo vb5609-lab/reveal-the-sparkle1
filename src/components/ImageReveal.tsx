@@ -30,29 +30,46 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   const [showConfetti, setShowConfetti] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [lastScratchTime, setLastScratchTime] = useState(0);
+  
+  // Performance optimization refs
+  const lastProgressCheck = useRef(0);
+  const animationFrameId = useRef<number | null>(null);
+  const progressCheckInterval = useRef<number | null>(null);
   
   const { playSound } = useSounds();
 
-  // Initialize canvas and overlay
+  // Optimized canvas initialization
   useEffect(() => {
     const canvas = canvasRef.current;
     const overlayCanvas = overlayCanvasRef.current;
     if (!canvas || !overlayCanvas) return;
 
-    const ctx = canvas.getContext('2d');
-    const overlayCtx = overlayCanvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { 
+      alpha: true, 
+      willReadFrequently: false 
+    });
+    const overlayCtx = overlayCanvas.getContext('2d', { 
+      alpha: true, 
+      willReadFrequently: true  // We read this frequently for progress calculation
+    });
     if (!ctx || !overlayCtx) return;
 
     // Set canvas size
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
+    const pixelRatio = Math.min(window.devicePixelRatio, 2); // Cap at 2x for performance
+    canvas.width = rect.width * pixelRatio;
+    canvas.height = rect.height * pixelRatio;
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    overlayCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.scale(pixelRatio, pixelRatio);
+    overlayCtx.scale(pixelRatio, pixelRatio);
+
+    // Optimize canvas rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    overlayCtx.imageSmoothingEnabled = true;
+    overlayCtx.imageSmoothingQuality = 'medium'; // Lower quality for overlay for performance
 
     // Create gradient overlay
     const gradient = overlayCtx.createLinearGradient(0, 0, rect.width, rect.height);
@@ -74,7 +91,19 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     overlayCtx.fillText('✨ Swipe or scratch the surface ✨', rect.width / 2, rect.height / 2 + 40);
   }, [imageLoaded]);
 
-  // Calculate reveal progress
+  // Cleanup effect for performance optimization
+  useEffect(() => {
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+      if (progressCheckInterval.current) {
+        clearInterval(progressCheckInterval.current);
+      }
+    };
+  }, []);
+
+  // Optimized progress calculation with throttling
   const calculateProgress = useCallback(() => {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return 0;
@@ -87,14 +116,37 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     let transparentPixels = 0;
     let totalPixels = pixels.length / 4;
 
-    for (let i = 3; i < pixels.length; i += 4) {
+    // Sample every 4th pixel for better performance
+    for (let i = 3; i < pixels.length; i += 16) {
       if (pixels[i] < 128) transparentPixels++;
     }
+    totalPixels = totalPixels / 4; // Adjust for sampling
 
     return (transparentPixels / totalPixels) * 100;
   }, []);
 
-  // Handle scratch/reveal interaction
+  // Throttled progress update
+  const updateProgress = useCallback(() => {
+    if (animationFrameId.current) return;
+    
+    animationFrameId.current = requestAnimationFrame(() => {
+      const progress = calculateProgress();
+      setRevealProgress(progress);
+      animationFrameId.current = null;
+      
+      // Check for completion
+      if (progress >= revealThreshold && !isCompleted) {
+        setIsCompleted(true);
+        setShowConfetti(true);
+        if (soundEnabled) playSound('success');
+        onRevealComplete?.();
+        toast.success("🎉 Image revealed! Amazing discovery!");
+        setTimeout(() => setShowConfetti(false), 3000);
+      }
+    });
+  }, [calculateProgress, revealThreshold, isCompleted, onRevealComplete, soundEnabled, playSound]);
+
+  // Optimized handle reveal function
   const handleReveal = useCallback((x: number, y: number) => {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas || isCompleted) return;
@@ -106,88 +158,80 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     const scaleX = overlayCanvas.width / rect.width;
     const scaleY = overlayCanvas.height / rect.height;
 
+    // Optimized canvas operations
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
     ctx.arc(x * scaleX, y * scaleY, brushSize * window.devicePixelRatio, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Play scratch sound (throttled)
-    const now = Date.now();
-    if (soundEnabled && now - lastScratchTime > 50) {
+    // Play scratch sound (handled by useSounds throttling)
+    if (soundEnabled) {
       playSound('scratch');
-      setLastScratchTime(now);
     }
 
-    // Update progress
-    const progress = calculateProgress();
-    setRevealProgress(progress);
+    // Throttled progress update
+    updateProgress();
+  }, [brushSize, isCompleted, soundEnabled, playSound, updateProgress]);
 
-    // Auto-reveal when threshold reached (Google Pay style)
-    if (progress >= 50 && !isCompleted) {
-      // Smooth auto-reveal animation
-      const autoReveal = () => {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        
-        const newProgress = calculateProgress();
-        setRevealProgress(newProgress);
-        
-        if (newProgress < 95) {
-          requestAnimationFrame(autoReveal);
-        } else {
-          setIsCompleted(true);
-          setShowConfetti(true);
-          if (soundEnabled) playSound('success');
-          onRevealComplete?.();
-          toast.success("🎉 Image revealed! Amazing discovery!");
-          setTimeout(() => setShowConfetti(false), 3000);
-        }
-      };
-      
-      setTimeout(autoReveal, 100);
-    }
-  }, [brushSize, calculateProgress, revealThreshold, isCompleted, onRevealComplete, soundEnabled, lastScratchTime, playSound]);
-
-  // Mouse events
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Optimized mouse events with throttling
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsRevealing(true);
     const rect = e.currentTarget.getBoundingClientRect();
     handleReveal(e.clientX - rect.left, e.clientY - rect.top);
-  };
+  }, [handleReveal]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isRevealing) return;
+    
+    // Throttle mouse move events for better performance
+    const now = performance.now();
+    if (now - lastProgressCheck.current < 16) return; // ~60fps limit
+    lastProgressCheck.current = now;
+    
     const rect = e.currentTarget.getBoundingClientRect();
     handleReveal(e.clientX - rect.left, e.clientY - rect.top);
-  };
+  }, [isRevealing, handleReveal]);
 
-  const handleMouseUp = () => setIsRevealing(false);
+  const handleMouseUp = useCallback(() => {
+    setIsRevealing(false);
+  }, []);
 
-  // Touch events
-  const handleTouchStart = (e: React.TouchEvent) => {
+  // Optimized touch events with throttling
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     setIsRevealing(true);
     const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
     handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
-  };
+  }, [handleReveal]);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     if (!isRevealing) return;
+    
+    // Throttle touch move events for better performance
+    const now = performance.now();
+    if (now - lastProgressCheck.current < 16) return; // ~60fps limit
+    lastProgressCheck.current = now;
+    
     const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
     handleReveal(touch.clientX - rect.left, touch.clientY - rect.top);
-  };
+  }, [isRevealing, handleReveal]);
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     setIsRevealing(false);
-  };
+  }, []);
 
-  // Reset function
-  const resetReveal = () => {
+  // Optimized reset function
+  const resetReveal = useCallback(() => {
+    // Cancel any pending operations
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+      animationFrameId.current = null;
+    }
+    
     setRevealProgress(0);
     setIsCompleted(false);
     setShowConfetti(false);
@@ -221,7 +265,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.fillText('✨ Swipe or scratch the surface ✨', rect.width / 2, rect.height / 2 + 40);
     
     toast.info("Ready for a new reveal! 🎯");
-  };
+  }, []);
 
   // Download functionality
   const downloadImage = () => {
