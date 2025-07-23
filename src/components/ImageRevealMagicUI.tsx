@@ -46,6 +46,25 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
+  // Initialize audio context on mobile for better sound support
+  React.useEffect(() => {
+    const initAudioOnMobile = () => {
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        // Pre-initialize audio context for mobile
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          if (audioContext.state === 'suspended') {
+            // Will be resumed on first user interaction
+          }
+        } catch (error) {
+          console.warn('Audio context initialization failed:', error);
+        }
+      }
+    };
+    
+    initAudioOnMobile();
+  }, []);
+
   const handleComplete = () => {
     // Prevent duplicate completion handling
     if (completionHandledRef.current || isCompleted) return;
@@ -53,7 +72,21 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
     completionHandledRef.current = true;
     setIsCompleted(true);
     setShowConfetti(true);
-    if (soundEnabled) playSound('success');
+    
+    // Play success sound with mobile fallback
+    if (soundEnabled) {
+      try {
+        playSound('success');
+      } catch (error) {
+        console.warn('Sound playback failed:', error);
+      }
+    }
+    
+    // Mobile haptic feedback for completion
+    if ('vibrate' in navigator) {
+      navigator.vibrate([100, 50, 100, 50, 200]); // Success vibration pattern
+    }
+    
     onRevealComplete?.();
     toast.success("🎉 Image revealed! Amazing discovery!");
     setTimeout(() => setShowConfetti(false), 3000);

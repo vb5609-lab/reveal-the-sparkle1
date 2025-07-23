@@ -18,7 +18,7 @@ const getAudioContext = () => {
 export const useSounds = () => {
   const lastSoundTimeRef = useRef(0);
   
-  const playSound = useCallback((type: 'scratch' | 'success') => {
+  const playSound = useCallback(async (type: 'scratch' | 'success') => {
     // Throttle sound playing for performance (reduced from 50ms to 30ms for better feel)
     const now = performance.now();
     if (type === 'scratch' && now - lastSoundTimeRef.current < 30) {
@@ -29,9 +29,16 @@ export const useSounds = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    // Resume context if suspended (required for some browsers)
-    if (ctx.state === 'suspended') {
-      ctx.resume();
+    // Resume context if suspended (required for mobile browsers)
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+        // Give a small delay for context to properly resume
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    } catch (error) {
+      console.warn('Audio context resume failed:', error);
+      return;
     }
 
     if (type === 'scratch') {
@@ -75,22 +82,33 @@ export const useSounds = () => {
       osc2.start();
       osc2.stop(ctx.currentTime + duration);
     } else if (type === 'success') {
-      // Optimized success chime
+      // Enhanced success chime with better mobile support
       const frequencies = [523.25, 659.25, 783.99]; // C, E, G notes
+      const baseDelay = ctx.currentTime + 0.05; // Small delay to ensure context is ready
+      
       frequencies.forEach((freq, index) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime + index * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + index * 0.08 + 0.25);
-        
-        osc.start(ctx.currentTime + index * 0.08);
-        osc.stop(ctx.currentTime + index * 0.08 + 0.25);
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, baseDelay);
+          
+          const startTime = baseDelay + index * 0.08;
+          const duration = 0.35; // Slightly longer for mobile
+          
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(0.12, startTime + 0.02); // Stronger initial volume
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+          
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        } catch (error) {
+          console.warn('Error creating success sound oscillator:', error);
+        }
       });
     }
   }, []);

@@ -289,7 +289,11 @@ export function ScratchToReveal({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         setRevealProgress(100);
         setIsCompleted(true);
-        onComplete?.();
+        
+        // Ensure completion callback is called after state updates
+        setTimeout(() => {
+          onComplete?.();
+        }, 50); // Small delay to ensure state is updated
       }
     };
     
@@ -390,6 +394,18 @@ export function ScratchToReveal({
     e.preventDefault();
     setIsScratching(true);
     lastPointRef.current = null; // Reset for new stroke
+    
+    // Initialize audio context on first touch (required for mobile)
+    if (typeof window !== 'undefined' && 'AudioContext' in window) {
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().catch(() => {}); // Silent fail if already running
+        }
+      } catch (error) {
+        // Silent fail - audio context may already exist or be unsupported
+      }
+    }
     
     // Add haptic feedback for mobile devices
     if ('vibrate' in navigator) {
