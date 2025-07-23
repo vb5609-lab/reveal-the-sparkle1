@@ -96,7 +96,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     };
   }, []);
 
-  // Accurate progress calculation with optimized sampling
+  // Real-time accurate progress calculation
   const calculateProgress = useCallback(() => {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return 0;
@@ -104,31 +104,39 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     const ctx = overlayCanvas.getContext('2d');
     if (!ctx) return 0;
 
-    // Throttle progress calculation to max once every 200ms for better accuracy
-    const now = performance.now();
-    if (now - lastProgressCheckRef.current < 200) {
-      return revealProgress; // Return cached value
-    }
-    lastProgressCheckRef.current = now;
-
+    // Remove throttling for real-time updates
     const imageData = ctx.getImageData(0, 0, overlayCanvas.width, overlayCanvas.height);
     const pixels = imageData.data;
     
-    // Use smaller sample rate for more accurate progress tracking
+    // Use smaller sample rate for more accurate real-time progress tracking
     let transparentPixels = 0;
     let totalSamples = 0;
-    const sampleRate = 8; // Check every 8th pixel for better accuracy
+    const sampleRate = 4; // Check every 4th pixel for maximum accuracy
 
     for (let i = 3; i < pixels.length; i += 4 * sampleRate) {
       totalSamples++;
-      if (pixels[i] < 50) { // Lower threshold for more accurate transparency detection
+      if (pixels[i] < 30) { // Even lower threshold for better sensitivity
         transparentPixels++;
       }
     }
 
     const progress = totalSamples > 0 ? (transparentPixels / totalSamples) * 100 : 0;
     return Math.min(progress, 100); // Cap at 100%
-  }, [revealProgress]);
+  }, []);
+
+  // Real-time progress sync effect for accurate percentage display
+  useEffect(() => {
+    if (!imageLoaded || isCompleted) return;
+    
+    const progressInterval = setInterval(() => {
+      const currentProgress = calculateProgress();
+      if (Math.abs(currentProgress - revealProgress) > 1) {
+        setRevealProgress(currentProgress);
+      }
+    }, 150); // Update every 150ms for smooth real-time display
+    
+    return () => clearInterval(progressInterval);
+  }, [imageLoaded, isCompleted, calculateProgress, revealProgress]);
 
   // Ultra-optimized reveal processing with requestAnimationFrame throttling
   const processRevealQueue = useCallback(() => {
@@ -220,10 +228,14 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
       playSound('scratch');
     }
 
-    // Update progress more frequently for accurate tracking
-    if (Math.random() < 0.3) { // Increased frequency to 30% for better accuracy
+    // Real-time progress updates for accurate percentage display
+    if (Math.random() < 0.8) { // Much higher frequency (80%) for real-time progress tracking
       const progress = calculateProgress();
-      setRevealProgress(progress);
+      
+      // Only update if there's a meaningful change (reduces flickering)
+      if (Math.abs(progress - revealProgress) > 0.5) {
+        setRevealProgress(progress);
+      }
 
       // Auto-reveal when 40% threshold is reached
       if (progress >= 40 && !isCompleted) {
@@ -254,7 +266,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     }
   }, [brushSize, calculateProgress, isCompleted, soundEnabled, playSound]);
 
-  // Performance-optimized queue-based reveal with accurate progress tracking
+  // Enhanced reveal processing with real-time progress sync
   const handleReveal = useCallback((x: number, y: number) => {
     // Avoid duplicate points close together for better performance
     const lastPoint = revealQueueRef.current[revealQueueRef.current.length - 1];
@@ -275,10 +287,19 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     if (!animationFrameRef.current) {
       animationFrameRef.current = requestAnimationFrame(() => {
         processRevealQueue();
+        
+        // Force progress update after processing to ensure sync
+        setTimeout(() => {
+          if (!isCompleted) {
+            const currentProgress = calculateProgress();
+            setRevealProgress(currentProgress);
+          }
+        }, 50);
+        
         animationFrameRef.current = undefined;
       });
     }
-  }, [processRevealQueue, brushSize]);
+  }, [processRevealQueue, brushSize, calculateProgress, isCompleted]);
 
   // Enhanced auto-reveal with smooth expanding effect
   const autoReveal = useCallback(() => {
