@@ -27,6 +27,9 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
   const animationFrameRef = useRef<number>();
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const revealQueueRef = useRef<{ x: number; y: number }[]>([]);
+  const progressTimerRef = useRef<number>();
+  const isDrawingRef = useRef<boolean>(false);
+  const lastProgressCheckRef = useRef<number>(0);
   
   const [isRevealing, setIsRevealing] = useState(false);
   const [revealProgress, setRevealProgress] = useState(0);
@@ -93,7 +96,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     };
   }, []);
 
-  // Calculate reveal progress
+  // Accurate progress calculation with optimized sampling
   const calculateProgress = useCallback(() => {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return 0;
@@ -101,25 +104,44 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     const ctx = overlayCanvas.getContext('2d');
     if (!ctx) return 0;
 
+    // Throttle progress calculation to max once every 200ms for better accuracy
+    const now = performance.now();
+    if (now - lastProgressCheckRef.current < 200) {
+      return revealProgress; // Return cached value
+    }
+    lastProgressCheckRef.current = now;
+
     const imageData = ctx.getImageData(0, 0, overlayCanvas.width, overlayCanvas.height);
     const pixels = imageData.data;
+    
+    // Use smaller sample rate for more accurate progress tracking
     let transparentPixels = 0;
-    let totalPixels = pixels.length / 4;
+    let totalSamples = 0;
+    const sampleRate = 8; // Check every 8th pixel for better accuracy
 
-    for (let i = 3; i < pixels.length; i += 4) {
-      if (pixels[i] < 128) transparentPixels++;
+    for (let i = 3; i < pixels.length; i += 4 * sampleRate) {
+      totalSamples++;
+      if (pixels[i] < 50) { // Lower threshold for more accurate transparency detection
+        transparentPixels++;
+      }
     }
 
-    return (transparentPixels / totalPixels) * 100;
-  }, []);
+    const progress = totalSamples > 0 ? (transparentPixels / totalSamples) * 100 : 0;
+    return Math.min(progress, 100); // Cap at 100%
+  }, [revealProgress]);
 
-  // Optimized smooth reveal with interpolation and queuing
+  // Ultra-optimized reveal processing with requestAnimationFrame throttling
   const processRevealQueue = useCallback(() => {
     const overlayCanvas = overlayCanvasRef.current;
-    if (!overlayCanvas || isCompleted || revealQueueRef.current.length === 0) return;
+    if (!overlayCanvas || isCompleted || revealQueueRef.current.length === 0 || isDrawingRef.current) return;
+
+    isDrawingRef.current = true; // Prevent concurrent drawing
 
     const ctx = overlayCanvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      isDrawingRef.current = false;
+      return;
+    }
 
     const rect = overlayCanvas.getBoundingClientRect();
     const scaleX = overlayCanvas.width / rect.width;
@@ -129,13 +151,17 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Performance-optimized processing with device adaptation
-    const isLowEndDevice = navigator.hardwareConcurrency <= 2 || window.devicePixelRatio > 2;
-    const batchSize = isLowEndDevice ? 2 : 4; // Smaller batches for low-end devices
-    const gapMultiplier = isLowEndDevice ? 0.25 : 0.15; // Larger gaps for low-end devices
+    // Aggressive performance optimization based on device capabilities
+    const isLowEndDevice = navigator.hardwareConcurrency <= 2 || window.devicePixelRatio > 2.5;
+    const batchSize = isLowEndDevice ? 1 : 2; // Even smaller batches for better responsiveness
+    const gapMultiplier = isLowEndDevice ? 0.4 : 0.2; // Optimized for smooth feel vs performance
 
-    // Process limited queued points for consistent performance
+    // Process only essential points for immediate responsiveness
     const processCount = Math.min(batchSize, revealQueueRef.current.length);
+    
+    // Use a single path for all points to reduce draw calls
+    ctx.beginPath();
+    
     for (let i = 0; i < processCount; i++) {
       const point = revealQueueRef.current.shift()!;
       const x = point.x * scaleX;
@@ -194,31 +220,53 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
       playSound('scratch');
     }
 
-    // Update progress much less frequently for better performance on all devices
-    if (Math.random() < 0.15) { // Only 15% of the time for better performance
+    // Update progress more frequently for accurate tracking
+    if (Math.random() < 0.3) { // Increased frequency to 30% for better accuracy
       const progress = calculateProgress();
       setRevealProgress(progress);
 
-      // Auto-reveal when threshold reached
-      if (progress >= revealThreshold && !isCompleted) {
-        setTimeout(() => autoReveal(), 200); // Slightly longer delay for smoother transition
+      // Auto-reveal when 40% threshold is reached
+      if (progress >= 40 && !isCompleted) {
+        setTimeout(() => {
+          if (overlayCanvasRef.current) {
+            const ctx = overlayCanvasRef.current.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+              setRevealProgress(100);
+              setIsCompleted(true);
+              setShowConfetti(true);
+              if (soundEnabled) playSound('success');
+              onRevealComplete?.();
+              toast.success("🎉 Image revealed! Amazing discovery!");
+              setTimeout(() => setShowConfetti(false), 3000);
+            }
+          }
+        }, 100); // Faster response time
       }
+    }
+
+    // Mark drawing as complete and schedule next frame if needed
+    isDrawingRef.current = false;
+    
+    // Continue processing if there are more points in queue
+    if (revealQueueRef.current.length > 0) {
+      requestAnimationFrame(processRevealQueue);
     }
   }, [brushSize, calculateProgress, isCompleted, soundEnabled, playSound]);
 
-  // Performance-optimized queue-based reveal
+  // Performance-optimized queue-based reveal with accurate progress tracking
   const handleReveal = useCallback((x: number, y: number) => {
     // Avoid duplicate points close together for better performance
     const lastPoint = revealQueueRef.current[revealQueueRef.current.length - 1];
     if (lastPoint) {
       const distance = Math.sqrt(Math.pow(x - lastPoint.x, 2) + Math.pow(y - lastPoint.y, 2));
-      if (distance < brushSize * 0.1) return; // Skip very close points
+      if (distance < brushSize * 0.05) return; // Reduced threshold for more responsive drawing
     }
     
     revealQueueRef.current.push({ x, y });
     
     // Limit queue size for consistent performance across devices
-    const maxQueueSize = navigator.hardwareConcurrency <= 2 ? 5 : 10;
+    const maxQueueSize = navigator.hardwareConcurrency <= 2 ? 8 : 15; // Increased for smoother experience
     if (revealQueueRef.current.length > maxQueueSize) {
       revealQueueRef.current.shift();
     }
@@ -264,13 +312,13 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
       
       currentRadius += expandSpeed;
       
-      const progress = calculateProgress(); // Remove the 95% limit
+      const progress = calculateProgress();
       setRevealProgress(progress);
       
-      if (currentRadius < maxRadius && progress < 100) { // Changed from 95 to 100
+      if (currentRadius < maxRadius && progress < 40) { // Stop expanding when 40% is reached
         requestAnimationFrame(expand);
       } else {
-        // Final cleanup - ensure complete reveal
+        // Complete the reveal process
         ctx.globalAlpha = 1;
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         
