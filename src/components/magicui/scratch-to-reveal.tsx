@@ -45,7 +45,7 @@ export function ScratchToReveal({
   className,
   children,
   onComplete,
-  gradientColors = ["#6366F1", "#8B5CF6", "#A855F7", "#C084FC"], // Vibrant purple-indigo gradient
+  gradientColors = ["#7c3aed", "#8b5cf6", "#a855f7", "#c084fc"], // Beautiful violet gradient
   resetKey = 0
 }: ScratchToRevealProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -114,65 +114,101 @@ export function ScratchToReveal({
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Add a colorful semi-transparent overlay for better contrast
-    ctx.fillStyle = "rgba(88, 28, 135, 0.7)"; // Purple overlay instead of black
+    // Add a modern glass-like overlay with beautiful violet tones
+    const overlayGradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) / 2);
+    overlayGradient.addColorStop(0, "rgba(124, 58, 237, 0.3)"); // violet-600 center
+    overlayGradient.addColorStop(0.5, "rgba(139, 92, 246, 0.5)"); // violet-500 middle
+    overlayGradient.addColorStop(0.8, "rgba(168, 85, 247, 0.7)"); // violet-400 outer
+    overlayGradient.addColorStop(1, "rgba(196, 132, 252, 0.8)"); // violet-300 edges
+
+    ctx.fillStyle = overlayGradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Add sparkle texture with light colors for visual appeal
-    ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-    for (let i = 0; i < 80; i++) {
+    // Add premium sparkle texture with varied sizes and opacity
+    const sparkleCount = isMobile ? 60 : 80; // Fewer sparkles on mobile for performance
+    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+    for (let i = 0; i < sparkleCount; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const size = Math.random() * 4 + 0.5;
+      const opacity = 0.1 + Math.random() * 0.1;
+      
+      ctx.globalAlpha = opacity;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    
+    ctx.globalAlpha = 1; // Reset alpha
+
+    // Add premium colored accents with violet-complementary colors
+    const accentColors = [
+      "rgba(245, 158, 11, 0.3)",   // Amber - warm complement
+      "rgba(34, 197, 94, 0.3)",    // Emerald - cool complement  
+      "rgba(59, 130, 246, 0.25)",  // Blue - analogous
+      "rgba(236, 72, 153, 0.25)",  // Pink - analogous
+      "rgba(255, 255, 255, 0.2)"   // White sparkles
+    ];
+    
+    const accentCount = isMobile ? 20 : 30;
+    for (let i = 0; i < accentCount; i++) {
       const x = Math.random() * width;
       const y = Math.random() * height;
       const size = Math.random() * 3 + 1;
+      const colorIndex = Math.floor(Math.random() * accentColors.length);
+      
+      ctx.fillStyle = accentColors[colorIndex];
       ctx.beginPath();
       ctx.arc(x, y, size, 0, 2 * Math.PI);
       ctx.fill();
     }
 
-    // Add some colored sparkles for magic effect
-    const sparkleColors = ["rgba(255, 215, 0, 0.3)", "rgba(255, 20, 147, 0.3)", "rgba(0, 255, 255, 0.3)"];
-    for (let i = 0; i < 30; i++) {
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      const size = Math.random() * 2 + 0.5;
-      ctx.fillStyle = sparkleColors[Math.floor(Math.random() * sparkleColors.length)];
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-
-    // Add scratch instruction text with enhanced visibility and glow effect
-    const fontSize = Math.min(width / 25, isMobile ? 20 : 24); // Slightly smaller on mobile
-    const smallFontSize = Math.min(width / 37, isMobile ? 14 : 16);
+    // Add scratch instruction text with enhanced visibility and modern design
+    const fontSize = Math.min(width / 22, isMobile ? 22 : 26); // Slightly larger and more responsive
+    const smallFontSize = Math.min(width / 32, isMobile ? 16 : 18);
     
-    // Bright white text with colorful glow effect
-    ctx.fillStyle = "rgba(255, 255, 255, 1)";
-    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+    // Modern white text with sophisticated glow effect
+    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // Create a glowing effect with multiple shadows
-    ctx.shadowColor = "rgba(139, 92, 246, 0.8)"; // Purple glow
-    ctx.shadowBlur = 15;
-    ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = "rgba(139, 92, 246, 0.6)";
-    ctx.lineWidth = 2;
+    // Create a premium multi-layer glow effect with violet tones
+    const glowLayers = [
+      { color: "rgba(168, 85, 247, 0.8)", blur: 20, offset: 0 },    // violet-400 primary glow
+      { color: "rgba(196, 132, 252, 0.6)", blur: 15, offset: 0 },   // violet-300 secondary glow
+      { color: "rgba(221, 173, 252, 0.4)", blur: 10, offset: 0 },   // violet-200 tertiary glow
+    ];
     
-    // Draw outline and fill for main text
     const mainText = isMobile ? "Touch to reveal..." : "Scratch to reveal...";
-    ctx.strokeText(mainText, width / 2, height / 2 - 20);
-    ctx.fillText(mainText, width / 2, height / 2 - 20);
     
-    // Subtitle with similar glow treatment
-    ctx.font = `${smallFontSize}px system-ui, -apple-system, sans-serif`;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.shadowColor = "rgba(255, 20, 147, 0.6)"; // Pink glow for subtitle
-    ctx.shadowBlur = 10;
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255, 20, 147, 0.4)";
-    const subText = isMobile ? "👆 Swipe with your finger 👆" : "✨ Swipe or scratch the surface ✨";
-    ctx.strokeText(subText, width / 2, height / 2 + 25);
-    ctx.fillText(subText, width / 2, height / 2 + 25);
+    // Draw multiple glow layers for depth
+    glowLayers.forEach(layer => {
+      ctx.shadowColor = layer.color;
+      ctx.shadowBlur = layer.blur;
+      ctx.shadowOffsetX = layer.offset;
+      ctx.shadowOffsetY = layer.offset;
+      ctx.fillText(mainText, width / 2, height / 2 - 15);
+    });
+    
+    // Draw the final crisp text on top
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.fillStyle = "rgba(255, 255, 255, 1)";
+    ctx.fillText(mainText, width / 2, height / 2 - 15);
+    
+    // Subtitle with refined styling
+    ctx.font = `500 ${smallFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    
+    // Subtle glow for subtitle with violet tone
+    ctx.shadowColor = "rgba(196, 132, 252, 0.6)"; // violet-300 glow
+    ctx.shadowBlur = 8;
+    
+    const subText = isMobile ? "Swipe with your finger" : "Swipe or scratch the surface";
+    ctx.fillText(subText, width / 2, height / 2 + 20);
     
     // Reset all effects
     ctx.shadowColor = "transparent";
@@ -401,10 +437,14 @@ export function ScratchToReveal({
     <div className={cn("relative w-full flex flex-col items-center", className)}>
       {/* Mobile Instructions Overlay */}
       {isMobile && showMobileInstructions && !isCompleted && (
-        <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4 rounded-t-lg">
-          <div className="text-center text-white animate-pulse">
-            <div className="text-lg font-bold mb-1">👆 Touch & Swipe</div>
-            <div className="text-sm opacity-90">Use your finger to reveal the hidden image</div>
+        <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-violet-900/90 via-violet-800/80 to-transparent p-4 rounded-t-lg backdrop-blur-sm border-b border-violet-300/20">
+          <div className="text-center text-white">
+            <div className="text-xl font-semibold mb-2 bg-gradient-to-r from-violet-300 to-violet-100 bg-clip-text text-transparent animate-pulse">
+              Touch & Swipe
+            </div>
+            <div className="text-sm text-violet-200 font-medium">
+              Use your finger to reveal the hidden image
+            </div>
           </div>
         </div>
       )}
@@ -412,9 +452,10 @@ export function ScratchToReveal({
       {/* Main scratch container */}
       <div
         className={cn(
-          "relative overflow-hidden rounded-lg shadow-lg transition-transform duration-200",
-          isMobile ? "shadow-2xl" : "shadow-lg",
-          isScratching && isMobile ? "scale-[1.02]" : ""
+          "relative overflow-hidden rounded-xl transition-all duration-300",
+          isMobile ? "shadow-2xl ring-1 ring-violet-300/20" : "shadow-xl hover:shadow-2xl hover:shadow-violet-500/20",
+          isScratching && isMobile ? "scale-[1.02] shadow-3xl shadow-violet-400/30" : "",
+          "bg-gradient-to-br from-violet-900/30 to-violet-800/30 backdrop-blur-sm"
         )}
         style={{ width, height }}
       >
@@ -482,7 +523,7 @@ export function ScratchToReveal({
             "text-center text-primary font-medium animate-bounce",
             isMobile ? "text-sm" : "text-xs"
           )}>
-            🎉 Auto-revealing soon...
+            Auto-revealing soon...
           </div>
         )}
         

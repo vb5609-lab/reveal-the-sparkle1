@@ -109,7 +109,7 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
               minScratchPercentage={revealThreshold}
               onComplete={handleComplete}
               className="w-full"
-              gradientColors={["#6366F1", "#8B5CF6", "#A855F7", "#C084FC"]}
+              gradientColors={["#7c3aed", "#8b5cf6", "#a855f7", "#c084fc"]} // Beautiful violet gradient
               resetKey={key}
             >
               <div className="w-full h-full flex items-center justify-center">
@@ -140,8 +140,7 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
             className="w-full text-xs sm:text-sm"
           >
             <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Reset</span>
-            <span className="xs:hidden">🔄</span>
+            Reset
           </Button>
         </motion.div>
         
@@ -154,8 +153,7 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
             disabled={!isCompleted}
           >
             <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Download</span>
-            <span className="xs:hidden">📥</span>
+            Download
           </Button>
         </motion.div>
         
