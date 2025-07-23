@@ -64,11 +64,11 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     overlayCtx.imageSmoothingEnabled = true;
     overlayCtx.imageSmoothingQuality = 'high';
 
-    // Create dark gradient overlay optimized for performance
+    // Create ultra-dark gradient overlay for maximum contrast
     const gradient = overlayCtx.createLinearGradient(0, 0, rect.width, rect.height);
-    gradient.addColorStop(0, 'rgba(59, 7, 100, 0.96)');   // Dark purple - optimized opacity
-    gradient.addColorStop(0.5, 'rgba(88, 28, 135, 0.94)'); // Dark violet - optimized opacity
-    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.96)');   // Dark purple - optimized opacity
+    gradient.addColorStop(0, 'rgba(59, 7, 100, 0.985)');   // Ultra-dark purple
+    gradient.addColorStop(0.5, 'rgba(88, 28, 135, 0.98)'); // Ultra-dark violet
+    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.985)');   // Ultra-dark purple
     
     overlayCtx.fillStyle = gradient;
     overlayCtx.fillRect(0, 0, rect.width, rect.height);
@@ -462,12 +462,12 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     
-    // Recreate dark overlay with performance-optimized gradient
+    // Recreate ultra-dark overlay for maximum contrast effect
     const gradient = ctx.createLinearGradient(0, 0, rect.width, rect.height);
-    gradient.addColorStop(0, 'rgba(59, 7, 100, 0.97)');   // Dark purple - balanced opacity
-    gradient.addColorStop(0.3, 'rgba(88, 28, 135, 0.95)'); // Dark violet - balanced opacity
-    gradient.addColorStop(0.7, 'rgba(107, 33, 168, 0.95)'); // Dark purple - balanced opacity
-    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.97)');   // Dark purple - balanced opacity
+    gradient.addColorStop(0, 'rgba(59, 7, 100, 0.99)');   // Ultra-dark purple (almost black)
+    gradient.addColorStop(0.3, 'rgba(88, 28, 135, 0.985)'); // Ultra-dark violet
+    gradient.addColorStop(0.7, 'rgba(107, 33, 168, 0.985)'); // Ultra-dark purple
+    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.99)');   // Ultra-dark purple (almost black)
     
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, rect.width, rect.height);
