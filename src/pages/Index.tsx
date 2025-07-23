@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ImageReveal } from '@/components/ImageReveal';
+import { ImageRevealMagicUI } from '@/components/ImageRevealMagicUI';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { AdminPanel } from '@/components/AdminPanel';
 import { Sparkles } from 'lucide-react';
@@ -129,10 +129,9 @@ const Index = () => {
             
             {/* Main card with glass morphism */}
             <div className="relative glass-card p-6 md:p-8">
-              <ImageReveal
+              <ImageRevealMagicUI
                 hiddenImageSrc={currentImage}
                 revealThreshold={revealSettings.revealThreshold}
-                brushSize={revealSettings.brushSize}
                 onRevealComplete={handleRevealComplete}
               />
             </div>
