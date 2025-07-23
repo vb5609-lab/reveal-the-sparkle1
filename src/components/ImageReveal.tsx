@@ -47,21 +47,28 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     const overlayCtx = overlayCanvas.getContext('2d');
     if (!ctx || !overlayCtx) return;
 
-    // Set canvas size
+    // Set canvas size with performance considerations
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
+    const pixelRatio = Math.min(window.devicePixelRatio, 2); // Cap pixel ratio for performance
+    canvas.width = rect.width * pixelRatio;
+    canvas.height = rect.height * pixelRatio;
     overlayCanvas.width = canvas.width;
     overlayCanvas.height = canvas.height;
     
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    overlayCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.scale(pixelRatio, pixelRatio);
+    overlayCtx.scale(pixelRatio, pixelRatio);
 
-    // Create gradient overlay
+    // Performance optimizations for canvas rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    overlayCtx.imageSmoothingEnabled = true;
+    overlayCtx.imageSmoothingQuality = 'high';
+
+    // Create dark gradient overlay optimized for performance
     const gradient = overlayCtx.createLinearGradient(0, 0, rect.width, rect.height);
-    gradient.addColorStop(0, 'rgba(139, 92, 246, 0.9)');
-    gradient.addColorStop(0.5, 'rgba(147, 51, 234, 0.8)');
-    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.9)');
+    gradient.addColorStop(0, 'rgba(59, 7, 100, 0.96)');   // Dark purple - optimized opacity
+    gradient.addColorStop(0.5, 'rgba(88, 28, 135, 0.94)'); // Dark violet - optimized opacity
+    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.96)');   // Dark purple - optimized opacity
     
     overlayCtx.fillStyle = gradient;
     overlayCtx.fillRect(0, 0, rect.width, rect.height);
@@ -122,20 +129,24 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Process all queued points with smooth interpolation
-    while (revealQueueRef.current.length > 0) {
+    // Performance-optimized processing with device adaptation
+    const isLowEndDevice = navigator.hardwareConcurrency <= 2 || window.devicePixelRatio > 2;
+    const batchSize = isLowEndDevice ? 2 : 4; // Smaller batches for low-end devices
+    const gapMultiplier = isLowEndDevice ? 0.25 : 0.15; // Larger gaps for low-end devices
+
+    // Process limited queued points for consistent performance
+    const processCount = Math.min(batchSize, revealQueueRef.current.length);
+    for (let i = 0; i < processCount; i++) {
       const point = revealQueueRef.current.shift()!;
       const x = point.x * scaleX;
       const y = point.y * scaleY;
 
       if (lastPointRef.current) {
-        // Draw smooth line between points for fluid movement
         const lastX = lastPointRef.current.x * scaleX;
         const lastY = lastPointRef.current.y * scaleY;
         
-        // Calculate distance and add ultra-smooth interpolation for buttery-smooth scratching
         const distance = Math.sqrt(Math.pow(x - lastX, 2) + Math.pow(y - lastY, 2));
-        const maxGap = brushSize * 0.15 * window.devicePixelRatio; // Much smaller gaps for ultra-smooth lines
+        const maxGap = brushSize * gapMultiplier * window.devicePixelRatio;
         
         if (distance > maxGap) {
           const steps = Math.ceil(distance / maxGap);
@@ -178,35 +189,48 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
       lastPointRef.current = point;
     }
 
-    // Optimized sound and progress updates
-    if (soundEnabled) {
+    // Performance-optimized sound and progress updates
+    if (soundEnabled && Math.random() < 0.5) { // Reduced sound frequency for performance
       playSound('scratch');
     }
 
-    // Update progress less frequently for better performance
-    if (Math.random() < 0.25) { // Only 25% of the time
+    // Update progress much less frequently for better performance on all devices
+    if (Math.random() < 0.15) { // Only 15% of the time for better performance
       const progress = calculateProgress();
       setRevealProgress(progress);
 
       // Auto-reveal when threshold reached
-      if (progress >= 50 && !isCompleted) {
-        setTimeout(() => autoReveal(), 150);
+      if (progress >= revealThreshold && !isCompleted) {
+        setTimeout(() => autoReveal(), 200); // Slightly longer delay for smoother transition
       }
     }
   }, [brushSize, calculateProgress, isCompleted, soundEnabled, playSound]);
 
-  // Queue-based reveal for ultra-smooth performance
+  // Performance-optimized queue-based reveal
   const handleReveal = useCallback((x: number, y: number) => {
+    // Avoid duplicate points close together for better performance
+    const lastPoint = revealQueueRef.current[revealQueueRef.current.length - 1];
+    if (lastPoint) {
+      const distance = Math.sqrt(Math.pow(x - lastPoint.x, 2) + Math.pow(y - lastPoint.y, 2));
+      if (distance < brushSize * 0.1) return; // Skip very close points
+    }
+    
     revealQueueRef.current.push({ x, y });
     
-    // Use requestAnimationFrame for optimal performance
+    // Limit queue size for consistent performance across devices
+    const maxQueueSize = navigator.hardwareConcurrency <= 2 ? 5 : 10;
+    if (revealQueueRef.current.length > maxQueueSize) {
+      revealQueueRef.current.shift();
+    }
+    
+    // Use optimized requestAnimationFrame scheduling
     if (!animationFrameRef.current) {
       animationFrameRef.current = requestAnimationFrame(() => {
         processRevealQueue();
         animationFrameRef.current = undefined;
       });
     }
-  }, [processRevealQueue]);
+  }, [processRevealQueue, brushSize]);
 
   // Enhanced auto-reveal with smooth expanding effect
   const autoReveal = useCallback(() => {
@@ -438,12 +462,12 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     
-    // Recreate beautiful overlay with enhanced gradient
+    // Recreate dark overlay with performance-optimized gradient
     const gradient = ctx.createLinearGradient(0, 0, rect.width, rect.height);
-    gradient.addColorStop(0, 'rgba(139, 92, 246, 0.95)');
-    gradient.addColorStop(0.3, 'rgba(147, 51, 234, 0.9)');
-    gradient.addColorStop(0.7, 'rgba(124, 58, 237, 0.9)');
-    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.95)');
+    gradient.addColorStop(0, 'rgba(59, 7, 100, 0.97)');   // Dark purple - balanced opacity
+    gradient.addColorStop(0.3, 'rgba(88, 28, 135, 0.95)'); // Dark violet - balanced opacity
+    gradient.addColorStop(0.7, 'rgba(107, 33, 168, 0.95)'); // Dark purple - balanced opacity
+    gradient.addColorStop(1, 'rgba(59, 7, 100, 0.97)');   // Dark purple - balanced opacity
     
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, rect.width, rect.height);
