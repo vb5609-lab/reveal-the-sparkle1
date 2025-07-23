@@ -53,7 +53,6 @@ export function ScratchToReveal({
   const [isCompleted, setIsCompleted] = useState(false);
   const [revealProgress, setRevealProgress] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [showMobileInstructions, setShowMobileInstructions] = useState(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const completionTriggeredRef = useRef(false); // Prevent multiple completion calls
 
@@ -67,7 +66,7 @@ export function ScratchToReveal({
     initCanvas();
   }, [resetKey]);
 
-  // Detect mobile device and setup mobile optimizations
+  // Detect mobile device for optimizations
   useEffect(() => {
     const checkIsMobile = () => {
       const userAgent = navigator.userAgent.toLowerCase();
@@ -81,18 +80,8 @@ export function ScratchToReveal({
     checkIsMobile();
     window.addEventListener('resize', checkIsMobile);
     
-    // Show mobile instructions briefly on mobile devices
-    if (isMobile && !isCompleted) {
-      setShowMobileInstructions(true);
-      const timer = setTimeout(() => setShowMobileInstructions(false), 4000);
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener('resize', checkIsMobile);
-      };
-    }
-
     return () => window.removeEventListener('resize', checkIsMobile);
-  }, [isMobile, isCompleted]);
+  }, []);
 
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -180,7 +169,7 @@ export function ScratchToReveal({
       { color: "rgba(221, 173, 252, 0.4)", blur: 10, offset: 0 },   // violet-200 tertiary glow
     ];
     
-    const mainText = isMobile ? "Touch to reveal..." : "Scratch to reveal...";
+    const mainText = "Scratch to reveal...";
     
     // Draw multiple glow layers for depth
     glowLayers.forEach(layer => {
@@ -207,7 +196,7 @@ export function ScratchToReveal({
     ctx.shadowColor = "rgba(196, 132, 252, 0.6)"; // violet-300 glow
     ctx.shadowBlur = 8;
     
-    const subText = isMobile ? "Swipe with your finger" : "Swipe or scratch the surface";
+    const subText = "Swipe or scratch the surface";
     ctx.fillText(subText, width / 2, height / 2 + 20);
     
     // Reset all effects
@@ -400,7 +389,6 @@ export function ScratchToReveal({
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
     setIsScratching(true);
-    setShowMobileInstructions(false); // Hide instructions when user starts touching
     lastPointRef.current = null; // Reset for new stroke
     
     // Add haptic feedback for mobile devices
@@ -435,20 +423,6 @@ export function ScratchToReveal({
 
   return (
     <div className={cn("relative w-full flex flex-col items-center", className)}>
-      {/* Mobile Instructions Overlay */}
-      {isMobile && showMobileInstructions && !isCompleted && (
-        <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-violet-900/90 via-violet-800/80 to-transparent p-4 rounded-t-lg backdrop-blur-sm border-b border-violet-300/20">
-          <div className="text-center text-white">
-            <div className="text-xl font-semibold mb-2 bg-gradient-to-r from-violet-300 to-violet-100 bg-clip-text text-transparent animate-pulse">
-              Touch & Swipe
-            </div>
-            <div className="text-sm text-violet-200 font-medium">
-              Use your finger to reveal the hidden image
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main scratch container */}
       <div
         className={cn(
