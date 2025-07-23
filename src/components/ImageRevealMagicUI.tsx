@@ -26,13 +26,18 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [key, setKey] = useState(0); // For resetting the component
   const [canvasWidth, setCanvasWidth] = useState(600);
+  const completionHandledRef = React.useRef(false); // Prevent duplicate completions
   
   const { playSound } = useSounds();
 
-  // Set responsive canvas width
+  // Set responsive canvas width with better mobile optimization
   React.useEffect(() => {
     const updateWidth = () => {
-      const maxWidth = Math.min(600, window.innerWidth - 80);
+      const isMobile = window.innerWidth <= 768;
+      const padding = isMobile ? 40 : 80; // Less padding on mobile
+      const maxWidth = isMobile ? 
+        Math.min(400, window.innerWidth - padding) : // Smaller max on mobile
+        Math.min(600, window.innerWidth - padding);
       setCanvasWidth(maxWidth);
     };
     
@@ -42,6 +47,10 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
   }, []);
 
   const handleComplete = () => {
+    // Prevent duplicate completion handling
+    if (completionHandledRef.current || isCompleted) return;
+    
+    completionHandledRef.current = true;
     setIsCompleted(true);
     setShowConfetti(true);
     if (soundEnabled) playSound('success');
@@ -51,6 +60,7 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
   };
 
   const resetReveal = () => {
+    completionHandledRef.current = false; // Reset completion flag
     setIsCompleted(false);
     setShowConfetti(false);
     setKey(prev => prev + 1); // Force re-render of ScratchToReveal
@@ -82,7 +92,7 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
       </AnimatePresence>
       
       <motion.div
-        whileHover={{ scale: 1.02 }}
+        whileHover={{ scale: window.innerWidth > 768 ? 1.02 : 1.0 }} // No hover scale on mobile
         transition={{ duration: 0.2 }}
       >
         <Card className="relative overflow-hidden bg-card border-card-border hover-glow">
@@ -92,10 +102,10 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
             </div>
           )}
           
-          <div className="p-4 sm:p-6">
+          <div className="p-3 sm:p-4 md:p-6"> {/* More responsive padding */}
             <ScratchToReveal
               width={canvasWidth}
-              height={400}
+              height={canvasWidth < 400 ? 300 : 400} // Smaller height on very small screens
               minScratchPercentage={revealThreshold}
               onComplete={handleComplete}
               className="w-full"
@@ -122,7 +132,7 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <motion.div className="flex-1 min-w-[80px]" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="flex-1 min-w-[80px]" whileHover={{ scale: window.innerWidth > 768 ? 1.02 : 1.0 }} whileTap={{ scale: 0.98 }}>
           <Button
             onClick={resetReveal}
             variant="outline"
@@ -130,11 +140,12 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
             className="w-full text-xs sm:text-sm"
           >
             <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            Reset
+            <span className="hidden xs:inline">Reset</span>
+            <span className="xs:hidden">🔄</span>
           </Button>
         </motion.div>
         
-        <motion.div className="flex-1 min-w-[90px]" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="flex-1 min-w-[90px]" whileHover={{ scale: window.innerWidth > 768 ? 1.02 : 1.0 }} whileTap={{ scale: 0.98 }}>
           <Button
             onClick={downloadImage}
             variant="outline"
@@ -143,11 +154,12 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
             disabled={!isCompleted}
           >
             <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            Download
+            <span className="hidden xs:inline">Download</span>
+            <span className="xs:hidden">📥</span>
           </Button>
         </motion.div>
         
-        <motion.div className="flex-1 min-w-[80px]" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="flex-1 min-w-[80px]" whileHover={{ scale: window.innerWidth > 768 ? 1.02 : 1.0 }} whileTap={{ scale: 0.98 }}>
           <ShareDialog
             imageUrl={hiddenImageSrc}
             isCompleted={isCompleted}
@@ -156,12 +168,13 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
         </motion.div>
         
         {/* Sound Toggle */}
-        <motion.div className="shrink-0" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <motion.div className="shrink-0" whileHover={{ scale: window.innerWidth > 768 ? 1.02 : 1.0 }} whileTap={{ scale: 0.98 }}>
           <Button
             onClick={() => setSoundEnabled(!soundEnabled)}
             variant="outline"
             size="sm"
             className="px-2 sm:px-3"
+            title={soundEnabled ? "Disable sound" : "Enable sound"}
           >
             {soundEnabled ? <Volume2 className="w-3 h-3 sm:w-4 sm:h-4" /> : <VolumeX className="w-3 h-3 sm:w-4 sm:h-4" />}
           </Button>

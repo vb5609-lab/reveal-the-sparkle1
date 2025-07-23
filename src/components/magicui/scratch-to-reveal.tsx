@@ -52,7 +52,10 @@ export function ScratchToReveal({
   const [isScratching, setIsScratching] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [revealProgress, setRevealProgress] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileInstructions, setShowMobileInstructions] = useState(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const completionTriggeredRef = useRef(false); // Prevent multiple completion calls
 
   // Reset component when resetKey changes
   useEffect(() => {
@@ -60,8 +63,36 @@ export function ScratchToReveal({
     setRevealProgress(0);
     setIsScratching(false);
     lastPointRef.current = null;
+    completionTriggeredRef.current = false; // Reset completion flag
     initCanvas();
   }, [resetKey]);
+
+  // Detect mobile device and setup mobile optimizations
+  useEffect(() => {
+    const checkIsMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      
+      setIsMobile(isMobileDevice || (isTouchDevice && isSmallScreen));
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    // Show mobile instructions briefly on mobile devices
+    if (isMobile && !isCompleted) {
+      setShowMobileInstructions(true);
+      const timer = setTimeout(() => setShowMobileInstructions(false), 4000);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', checkIsMobile);
+      };
+    }
+
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, [isMobile, isCompleted]);
 
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -111,8 +142,8 @@ export function ScratchToReveal({
     }
 
     // Add scratch instruction text with enhanced visibility and glow effect
-    const fontSize = Math.min(width / 25, 24); // Responsive font size
-    const smallFontSize = Math.min(width / 37, 16);
+    const fontSize = Math.min(width / 25, isMobile ? 20 : 24); // Slightly smaller on mobile
+    const smallFontSize = Math.min(width / 37, isMobile ? 14 : 16);
     
     // Bright white text with colorful glow effect
     ctx.fillStyle = "rgba(255, 255, 255, 1)";
@@ -128,8 +159,9 @@ export function ScratchToReveal({
     ctx.lineWidth = 2;
     
     // Draw outline and fill for main text
-    ctx.strokeText("Scratch to reveal...", width / 2, height / 2 - 20);
-    ctx.fillText("Scratch to reveal...", width / 2, height / 2 - 20);
+    const mainText = isMobile ? "Touch to reveal..." : "Scratch to reveal...";
+    ctx.strokeText(mainText, width / 2, height / 2 - 20);
+    ctx.fillText(mainText, width / 2, height / 2 - 20);
     
     // Subtitle with similar glow treatment
     ctx.font = `${smallFontSize}px system-ui, -apple-system, sans-serif`;
@@ -138,8 +170,9 @@ export function ScratchToReveal({
     ctx.shadowBlur = 10;
     ctx.lineWidth = 1;
     ctx.strokeStyle = "rgba(255, 20, 147, 0.4)";
-    ctx.strokeText("✨ Swipe or scratch the surface ✨", width / 2, height / 2 + 25);
-    ctx.fillText("✨ Swipe or scratch the surface ✨", width / 2, height / 2 + 25);
+    const subText = isMobile ? "👆 Swipe with your finger 👆" : "✨ Swipe or scratch the surface ✨";
+    ctx.strokeText(subText, width / 2, height / 2 + 25);
+    ctx.fillText(subText, width / 2, height / 2 + 25);
     
     // Reset all effects
     ctx.shadowColor = "transparent";
@@ -147,7 +180,7 @@ export function ScratchToReveal({
     ctx.shadowOffsetY = 0;
     ctx.strokeStyle = "transparent";
     ctx.lineWidth = 0;
-  }, [width, height, gradientColors]);
+  }, [width, height, gradientColors, isMobile]);
 
   useEffect(() => {
     initCanvas();
@@ -192,10 +225,12 @@ export function ScratchToReveal({
 
   const autoReveal = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || isCompleted) return;
+    if (!canvas || isCompleted || completionTriggeredRef.current) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    completionTriggeredRef.current = true; // Prevent multiple calls
 
     ctx.globalCompositeOperation = "destination-out";
     
@@ -238,7 +273,7 @@ export function ScratchToReveal({
 
   const scratch = useCallback((x: number, y: number) => {
     const canvas = canvasRef.current;
-    if (!canvas || isCompleted) return;
+    if (!canvas || isCompleted || completionTriggeredRef.current) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -247,8 +282,8 @@ export function ScratchToReveal({
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    // Enhanced brush size for better coverage
-    const brushSize = 35;
+    // Enhanced brush size for better coverage (larger on mobile for finger touch)
+    const brushSize = isMobile ? 45 : 35;
 
     // Smooth interpolation between points for better scratch lines
     if (lastPointRef.current) {
@@ -286,11 +321,12 @@ export function ScratchToReveal({
     }
     
     // Auto-reveal when 20% threshold is reached (much faster completion)
-    if (percentage >= 20 && !isCompleted) {
+    if (percentage >= 20 && !isCompleted && !completionTriggeredRef.current) {
       setTimeout(() => {
         autoReveal();
       }, 100);
-    } else if (percentage >= minScratchPercentage && !isCompleted) {
+    } else if (percentage >= minScratchPercentage && !isCompleted && !completionTriggeredRef.current) {
+      completionTriggeredRef.current = true; // Prevent multiple calls
       setRevealProgress(100);
       setIsCompleted(true);
       onComplete?.();
@@ -328,7 +364,14 @@ export function ScratchToReveal({
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
     setIsScratching(true);
+    setShowMobileInstructions(false); // Hide instructions when user starts touching
     lastPointRef.current = null; // Reset for new stroke
+    
+    // Add haptic feedback for mobile devices
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50); // Light vibration feedback
+    }
+    
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const touch = e.touches[0];
@@ -356,9 +399,23 @@ export function ScratchToReveal({
 
   return (
     <div className={cn("relative w-full flex flex-col items-center", className)}>
+      {/* Mobile Instructions Overlay */}
+      {isMobile && showMobileInstructions && !isCompleted && (
+        <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4 rounded-t-lg">
+          <div className="text-center text-white animate-pulse">
+            <div className="text-lg font-bold mb-1">👆 Touch & Swipe</div>
+            <div className="text-sm opacity-90">Use your finger to reveal the hidden image</div>
+          </div>
+        </div>
+      )}
+
       {/* Main scratch container */}
       <div
-        className="relative overflow-hidden rounded-lg shadow-lg"
+        className={cn(
+          "relative overflow-hidden rounded-lg shadow-lg transition-transform duration-200",
+          isMobile ? "shadow-2xl" : "shadow-lg",
+          isScratching && isMobile ? "scale-[1.02]" : ""
+        )}
         style={{ width, height }}
       >
         {/* Content underneath */}
@@ -369,7 +426,11 @@ export function ScratchToReveal({
         {/* Scratch canvas overlay */}
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 cursor-pointer touch-none"
+          className={cn(
+            "absolute inset-0 touch-none transition-opacity duration-200",
+            isMobile ? "cursor-none" : "cursor-pointer",
+            isScratching && isMobile ? "opacity-95" : "opacity-100"
+          )}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -389,14 +450,25 @@ export function ScratchToReveal({
       </div>
       
       {/* Progress Bar */}
-      <div className="mt-6 w-full max-w-md space-y-3">
+      <div className={cn(
+        "mt-6 w-full space-y-3",
+        isMobile ? "max-w-sm px-4" : "max-w-md"
+      )}>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span className="font-medium">Reveal Progress</span>
-          <span className="text-primary font-bold text-lg animate-pulse">
+          <span className={cn("font-medium", isMobile ? "text-xs" : "text-sm")}>
+            Reveal Progress
+          </span>
+          <span className={cn(
+            "text-primary font-bold animate-pulse",
+            isMobile ? "text-xl" : "text-lg"
+          )}>
             {Math.round(revealProgress)}%
           </span>
         </div>
-        <div className="w-full h-3 bg-muted rounded-full overflow-hidden shadow-inner">
+        <div className={cn(
+          "w-full bg-muted rounded-full overflow-hidden shadow-inner",
+          isMobile ? "h-4" : "h-3"
+        )}>
           <div 
             className="h-full bg-gradient-to-r from-primary via-secondary to-primary rounded-full transition-all duration-500 ease-out transform origin-left"
             style={{ 
@@ -406,8 +478,18 @@ export function ScratchToReveal({
           />
         </div>
         {revealProgress >= 20 && !isCompleted && (
-          <div className="text-center text-xs text-primary font-medium animate-bounce">
+          <div className={cn(
+            "text-center text-primary font-medium animate-bounce",
+            isMobile ? "text-sm" : "text-xs"
+          )}>
             🎉 Auto-revealing soon...
+          </div>
+        )}
+        
+        {/* Mobile-specific progress indicator */}
+        {isMobile && revealProgress > 0 && revealProgress < 20 && (
+          <div className="text-center text-xs text-muted-foreground">
+            Keep swiping! {Math.max(0, 20 - Math.round(revealProgress))}% to go
           </div>
         )}
       </div>
