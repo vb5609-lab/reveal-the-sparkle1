@@ -74,7 +74,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         onClick={() => setIsOpen(true)}
         variant="outline"
         size="sm"
-        className="fixed top-24 right-4 z-40 hover-scale bg-card/80 backdrop-blur-sm border-[#004aad]/30 hover:border-[#004aad]/50 transition-all duration-300"
+        className="fixed top-16 right-8 z-40 hover-scale bg-card/80 backdrop-blur-sm border-[#004aad]/30 hover:border-[#004aad]/50 transition-all duration-300"
       >
         <Settings className="w-4 h-4" />
       </Button>
