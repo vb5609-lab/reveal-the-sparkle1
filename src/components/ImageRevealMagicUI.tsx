@@ -30,8 +30,8 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
     const updateWidth = () => {
       const isMobile = window.innerWidth <= 768;
       const maxWidth = isMobile ? 
-        Math.min(320, window.innerWidth) : 
-        Math.min(480, window.innerWidth);
+        Math.min(280, window.innerWidth - 32) : // Better mobile sizing with margin
+        Math.min(480, window.innerWidth - 64);
       setCanvasWidth(maxWidth);
     };
     
@@ -101,18 +101,18 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
   };
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full px-2 sm:px-0">
       {showConfetti && <Confetti />}
       
       {/* Container with dark glassmorphism background matching the page theme */}
-      <div className="relative p-6 rounded-3xl bg-gradient-to-br from-black/40 via-[#001122]/30 to-[#004aad]/10 backdrop-blur-sm border border-[#004aad]/20 shadow-2xl shadow-[#004aad]/5">
-        <div className="relative overflow-hidden rounded-3xl">
+      <div className="relative p-3 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-black/40 via-[#001122]/30 to-[#004aad]/10 backdrop-blur-sm border border-[#004aad]/20 shadow-2xl shadow-[#004aad]/5 mx-auto max-w-xl">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl">
           <ScratchToReveal
           width={canvasWidth}
-          height={canvasWidth < 400 ? 300 : 400}
+          height={canvasWidth < 300 ? 250 : canvasWidth < 400 ? 300 : 400}
           minScratchPercentage={revealThreshold}
           onComplete={handleComplete}
-          className="w-full rounded-3xl overflow-hidden shadow-2xl"
+          className="w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl sm:shadow-2xl"
           gradientColors={["#004aad", "#0066cc", "#1a73e8", "#4285f4"]}
           resetKey={key}
         >
@@ -127,11 +127,11 @@ export const ImageRevealMagicUI: React.FC<ImageRevealMagicUIProps> = ({
           </ScratchToReveal>
         </div>
         
-        {/* Reset Button with Google Pay inspired design */}
-        <div className="flex justify-center mt-6">
+        {/* Reset Button with Google Pay inspired design - Mobile optimized */}
+        <div className="flex justify-center mt-4 sm:mt-6">
           <button
             onClick={resetReveal}
-            className="group relative px-8 py-3 bg-gradient-to-r from-[#004aad] to-[#0066cc] hover:from-[#003d94] hover:to-[#0055b3] text-white text-sm font-medium rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#004aad]/50 focus:ring-offset-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="group relative px-6 sm:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-[#004aad] to-[#0066cc] hover:from-[#003d94] hover:to-[#0055b3] text-white text-sm font-medium rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#004aad]/50 focus:ring-offset-2 shadow-lg hover:shadow-xl transform hover:scale-105 min-w-[120px] touch-manipulation"
           >
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-white/10 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <span className="relative">
