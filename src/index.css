@@ -8,9 +8,9 @@
 
 @layer base {
   :root {
-    /* Premium Background System */
-    --background: 240 10% 3.9%;
-    --background-secondary: 240 8% 6%;
+    /* Dark Blue Background System that complements #004aad */
+    --background: 210 50% 7%;
+    --background-secondary: 210 50% 7%;
     --foreground: 0 0% 98%;
 
     /* Card & Surface System */
@@ -150,15 +150,15 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    background: var(--gradient-bg);
+    @apply text-foreground;
+    background: #001122 !important;
     min-height: 100vh;
     position: relative;
   }
   
-  /* Beautiful light theme background patterns */
+  /* Override light theme background patterns with consistent dark blue */
   .light body {
-    background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
+    background: #001122 !important;
     background-attachment: fixed;
   }
   
@@ -169,10 +169,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
-      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(120, 219, 226, 0.06) 0%, transparent 50%);
+    background: #001122;
     pointer-events: none;
     z-index: -1;
   }

@@ -18,7 +18,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: '#000000' }}>
+    <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: '#001122' }}>
       
 
       
@@ -83,18 +83,18 @@ const Index = () => {
       
       {/* Enhanced Main Reveal Area with beautiful card design */}
       <motion.div 
-        className="container mx-auto px-4 pb-16"
+        className="w-full"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.8 }}
       >
-        <div className="max-w-3xl mx-auto">
+        <div className="w-full">
           <div className="relative">
             {/* Beautiful background glow */}
             <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 rounded-3xl blur-xl opacity-50"></div>
             
             {/* Main card with glass morphism */}
-            <div className="relative glass-card p-6 md:p-8">
+            <div className="relative">
               <ImageRevealMagicUI
                 hiddenImageSrc={currentImage}
                 revealThreshold={revealSettings.revealThreshold}
@@ -103,7 +103,6 @@ const Index = () => {
             </div>
             
             {/* Decorative elements */}
-            <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full opacity-70 animate-pulse"></div>
             <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-60 animate-ping"></div>
           </div>
         </div>

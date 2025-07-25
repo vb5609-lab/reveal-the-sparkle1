@@ -98,44 +98,7 @@ export function ScratchToReveal({
     ctx.fillStyle = "#004aad";
     ctx.fillRect(0, 0, width, height);
 
-    // Add premium sparkle texture with varied sizes and opacity
-    const sparkleCount = isMobile ? 60 : 80; // Fewer sparkles on mobile for performance
-    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-    for (let i = 0; i < sparkleCount; i++) {
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      const size = Math.random() * 4 + 0.5;
-      const opacity = 0.1 + Math.random() * 0.1;
-      
-      ctx.globalAlpha = opacity;
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-    
     ctx.globalAlpha = 1; // Reset alpha
-
-    // Add premium colored accents with violet-complementary colors
-    const accentColors = [
-      "rgba(245, 158, 11, 0.3)",   // Amber - warm complement
-      "rgba(34, 197, 94, 0.3)",    // Emerald - cool complement  
-      "rgba(59, 130, 246, 0.25)",  // Blue - analogous
-      "rgba(236, 72, 153, 0.25)",  // Pink - analogous
-      "rgba(255, 255, 255, 0.2)"   // White sparkles
-    ];
-    
-    const accentCount = isMobile ? 20 : 30;
-    for (let i = 0; i < accentCount; i++) {
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      const size = Math.random() * 3 + 1;
-      const colorIndex = Math.floor(Math.random() * accentColors.length);
-      
-      ctx.fillStyle = accentColors[colorIndex];
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, 2 * Math.PI);
-      ctx.fill();
-    }
 
     // Add scratch instruction text with enhanced visibility and modern design
     const fontSize = Math.min(width / 22, isMobile ? 22 : 26); // Slightly larger and more responsive
@@ -416,8 +379,8 @@ export function ScratchToReveal({
       {/* Main scratch container */}
       <div
         className={cn(
-          "relative overflow-hidden rounded-xl transition-all duration-300",
-          isMobile ? "shadow-2xl ring-1 ring-violet-300/20" : "shadow-xl hover:shadow-2xl hover:shadow-violet-500/20",
+          "relative overflow-hidden rounded-none transition-all duration-300",
+          isMobile ? "shadow-2xl" : "shadow-xl hover:shadow-2xl hover:shadow-violet-500/20",
           isScratching && isMobile ? "scale-[1.02] shadow-3xl shadow-violet-400/30" : "",
           "bg-gradient-to-br from-violet-900/30 to-violet-800/30 backdrop-blur-sm"
         )}
