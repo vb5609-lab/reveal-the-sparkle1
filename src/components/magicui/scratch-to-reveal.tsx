@@ -94,9 +94,51 @@ export function ScratchToReveal({
     canvas.width = width;
     canvas.height = height;
 
-    // Create solid #004aad overlay
-    ctx.fillStyle = "#004aad";
+    // Create glassmorphism overlay with #004aad base
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, "rgba(0, 74, 173, 0.95)");
+    gradient.addColorStop(0.5, "rgba(0, 74, 173, 0.98)");
+    gradient.addColorStop(1, "rgba(0, 74, 173, 0.95)");
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
+
+    // Add glassmorphism texture effects
+    ctx.globalAlpha = 0.1;
+    
+    // Add subtle geometric patterns for glassmorphism effect
+    const patternCount = 30;
+    for (let i = 0; i < patternCount; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const size = Math.random() * 40 + 10;
+      const opacity = 0.05 + Math.random() * 0.1;
+      
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    // Add frosted glass grid pattern
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1;
+    const gridSize = 30;
+    
+    for (let x = 0; x <= width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    
+    for (let y = 0; y <= height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
 
     ctx.globalAlpha = 1; // Reset alpha
 
