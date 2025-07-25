@@ -642,34 +642,7 @@ export const ImageReveal: React.FC<ImageRevealProps> = ({
       </Card>
       </motion.div>
       
-      {/* Progress Bar */}
-      <motion.div 
-        className="mt-4 space-y-2"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-      >
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Reveal Progress</span>
-          <motion.span 
-            className="text-gradient-primary font-medium"
-            key={Math.round(revealProgress)}
-            initial={{ scale: 1.2 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.2 }}
-          >
-            {Math.round(revealProgress)}%
-          </motion.span>
-        </div>
-        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-          <motion.div 
-            className="h-full bg-gradient-to-r from-primary to-primary-glow"
-            initial={{ width: 0 }}
-            animate={{ width: `${revealProgress}%` }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          />
-        </div>
-      </motion.div>
+
       
       {/* Action Buttons - Mobile Responsive Layout */}
       <motion.div 

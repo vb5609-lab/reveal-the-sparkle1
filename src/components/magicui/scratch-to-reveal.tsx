@@ -94,23 +94,8 @@ export function ScratchToReveal({
     canvas.width = width;
     canvas.height = height;
 
-    // Create beautiful gradient overlay with vibrant colors
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradientColors.forEach((color, index) => {
-      gradient.addColorStop(index / (gradientColors.length - 1), color);
-    });
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    // Add a modern glass-like overlay with beautiful violet tones
-    const overlayGradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) / 2);
-    overlayGradient.addColorStop(0, "rgba(124, 58, 237, 0.3)"); // violet-600 center
-    overlayGradient.addColorStop(0.5, "rgba(139, 92, 246, 0.5)"); // violet-500 middle
-    overlayGradient.addColorStop(0.8, "rgba(168, 85, 247, 0.7)"); // violet-400 outer
-    overlayGradient.addColorStop(1, "rgba(196, 132, 252, 0.8)"); // violet-300 edges
-
-    ctx.fillStyle = overlayGradient;
+    // Create solid #004aad overlay
+    ctx.fillStyle = "#004aad";
     ctx.fillRect(0, 0, width, height);
 
     // Add premium sparkle texture with varied sizes and opacity
@@ -169,7 +154,7 @@ export function ScratchToReveal({
       { color: "rgba(221, 173, 252, 0.4)", blur: 10, offset: 0 },   // violet-200 tertiary glow
     ];
     
-    const mainText = "Scratch to reveal...";
+    const mainText = "Scratch here!";
     
     // Draw multiple glow layers for depth
     glowLayers.forEach(layer => {
@@ -187,17 +172,6 @@ export function ScratchToReveal({
     ctx.shadowOffsetY = 0;
     ctx.fillStyle = "rgba(255, 255, 255, 1)";
     ctx.fillText(mainText, width / 2, height / 2 - 15);
-    
-    // Subtitle with refined styling
-    ctx.font = `500 ${smallFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-    
-    // Subtle glow for subtitle with violet tone
-    ctx.shadowColor = "rgba(196, 132, 252, 0.6)"; // violet-300 glow
-    ctx.shadowBlur = 8;
-    
-    const subText = "Swipe or scratch the surface";
-    ctx.fillText(subText, width / 2, height / 2 + 20);
     
     // Reset all effects
     ctx.shadowColor = "transparent";
@@ -479,51 +453,7 @@ export function ScratchToReveal({
           }}
         />
       </div>
-      
-      {/* Progress Bar */}
-      <div className={cn(
-        "mt-6 w-full space-y-3",
-        isMobile ? "max-w-sm px-4" : "max-w-md"
-      )}>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span className={cn("font-medium", isMobile ? "text-xs" : "text-sm")}>
-            Reveal Progress
-          </span>
-          <span className={cn(
-            "text-primary font-bold animate-pulse",
-            isMobile ? "text-xl" : "text-lg"
-          )}>
-            {Math.round(revealProgress)}%
-          </span>
-        </div>
-        <div className={cn(
-          "w-full bg-muted rounded-full overflow-hidden shadow-inner",
-          isMobile ? "h-4" : "h-3"
-        )}>
-          <div 
-            className="h-full bg-gradient-to-r from-primary via-secondary to-primary rounded-full transition-all duration-500 ease-out transform origin-left"
-            style={{ 
-              width: `${revealProgress}%`,
-              boxShadow: revealProgress > 0 ? '0 0 10px rgba(139, 92, 246, 0.5)' : 'none'
-            }}
-          />
-        </div>
-        {revealProgress >= 20 && !isCompleted && (
-          <div className={cn(
-            "text-center text-primary font-medium animate-bounce",
-            isMobile ? "text-sm" : "text-xs"
-          )}>
-            Auto-revealing soon...
-          </div>
-        )}
-        
-        {/* Mobile-specific progress indicator */}
-        {isMobile && revealProgress > 0 && revealProgress < 20 && (
-          <div className="text-center text-xs text-muted-foreground">
-            Keep swiping! {Math.max(0, 20 - Math.round(revealProgress))}% to go
-          </div>
-        )}
-      </div>
+
     </div>
   );
 }
